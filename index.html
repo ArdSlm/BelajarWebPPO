@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SISTEM STAMPLING & PENGHITUNGAN BARANG - KELOMPOK 4</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header class="header">
+    <div class="hd-left">
+      <div class="hd-logo">
+        <img src="assets/Undip.png" alt="Logo Undip" class="undip-logo" />
+      </div>
+      <div class="hd-heading">
+        <div class="hd-title">SISTEM STAMPLING &amp; PENGHITUNGAN BARANG</div>
+        <div class="hd-sub">
+          <span class="hd-tag">Kelompok 4</span>
+          <span class="hd-sep">•</span>
+          <span class="hd-course">Praktikum Proyek Otomasi</span>
+        </div>
+      </div>
+      <div class="hd-logo hd-logo-right">
+        <img src="assets/Undip.png" alt="Logo Undip" class="undip-logo" />
+      </div>
+    </div>
+    <div class="hd-right">
+      <div class="status-pill" id="systemStatus">
+        <span class="sp-dot"></span>
+        <span id="statusText">SISTEM AKTIF</span>
+      </div>
+      <div class="hd-clock" id="clock">00:00:00</div>
+    </div>
+  </header>
+
+  <!-- ══ MAIN GRID ══ -->
+  <div class="main-grid">
+
+    <!-- ── LEFT: CONTROL PANEL ── -->
+    <aside class="control-panel">
+      <div class="panel-title">🎛️ Panel Kontrol</div>
+
+      <!-- CONVEYOR ON/OFF -->
+      <div class="ctrl-section">
+        <div class="ctrl-label">Konveyor</div>
+        <div class="ctrl-row">
+          <button class="btn-main btn-on" id="btnOn" onclick="conveyorOn()">▶ ON</button>
+          <button class="btn-main btn-off" id="btnOff" onclick="conveyorOff()" disabled>■ OFF</button>
+        </div>
+        <div class="mode-row">
+          <button class="mode-btn active" id="modeAuto" onclick="setMode('auto')">AUTO</button>
+          <button class="mode-btn" id="modeManual" onclick="setMode('manual')">MANUAL</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- SPEED CONTROL -->
+      <div class="ctrl-section">
+        <div class="ctrl-label">Kecepatan Motor (PWM)</div>
+        <div class="speed-display">
+          <span id="speedVal">60</span>
+          <span class="speed-unit">% PWM</span>
+        </div>
+        <input type="range" class="speed-slider" id="speedSlider" min="0" max="100" value="60"
+          oninput="updateSpeed(this.value)" />
+        <div class="speed-labels">
+          <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        </div>
+        <div class="speed-presets">
+          <button class="preset-btn" onclick="setSpeed(25)">Lambat</button>
+          <button class="preset-btn active" onclick="setSpeed(60)">Sedang</button>
+          <button class="preset-btn" onclick="setSpeed(100)">Cepat</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- MANUAL STAMP -->
+      <div class="ctrl-section">
+        <div class="ctrl-label">Stampling Manual</div>
+        <button class="btn-stamp" id="btnStamp" onclick="manualStamp()" disabled>
+          <span class="stamp-icon">🔨</span>
+          <span>PRESS STAMP</span>
+        </button>
+        <div class="manual-note" id="manualNote">Aktifkan mode MANUAL terlebih dahulu</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- SENSOR OVERRIDE -->
+      <div class="ctrl-section">
+        <div class="ctrl-label">Sensor Override</div>
+        <div class="toggle-row">
+          <span class="tg-label">Sensor IR Inlet</span>
+          <label class="toggle"><input type="checkbox" checked onchange="toggleSensor('ir-inlet',this)"><span
+              class="tg-track"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="tg-label">Unit Stampling</span>
+          <label class="toggle"><input type="checkbox" checked onchange="toggleSensor('stamp',this)"><span
+              class="tg-track"></span></label>
+        </div>
+        <div class="toggle-row">
+            <span class="tg-label">Sensor IR 2</span>
+          <label class="toggle"><input type="checkbox" checked onchange="toggleSensor('qc',this)"><span
+              class="tg-track"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="tg-label">Reject Gate</span>
+          <label class="toggle"><input type="checkbox" checked onchange="toggleSensor('reject',this)"><span
+              class="tg-track"></span></label>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- RESET -->
+      <button class="btn-reset" onclick="resetSystem()">🔄 Reset Counter</button>
+    </aside>
+
+    <!-- ── RIGHT: DASHBOARD ── -->
+    <div class="dashboard-area">
+
+      <!-- STAT CARDS -->
+      <div class="stat-row">
+        <div class="scard" style="--accent:#6366f1">
+          <div class="sc-icon">📦</div>
+          <div class="sc-val" id="sc-total">0</div>
+          <div class="sc-label">Total Masuk</div>
+        </div>
+        <div class="scard" style="--accent:#06b6d4">
+          <div class="sc-icon">🔖</div>
+          <div class="sc-val" id="sc-stamped">0</div>
+          <div class="sc-label">Terstempel</div>
+        </div>
+        <div class="scard" style="--accent:#f43f5e">
+          <div class="sc-icon">❌</div>
+          <div class="sc-val" id="sc-reject">0</div>
+          <div class="sc-label">Reject</div>
+        </div>
+        <div class="scard" style="--accent:#10b981">
+          <div class="sc-icon">✅</div>
+          <div class="sc-val" id="sc-rate">0.0%</div>
+          <div class="sc-label">Akurasi</div>
+        </div>
+        <div class="scard" style="--accent:#f59e0b">
+          <div class="sc-icon">⚡</div>
+          <div class="sc-val" id="sc-pwm">60%</div>
+          <div class="sc-label">PWM Motor</div>
+        </div>
+      </div>
+
+      <!-- CONVEYOR VISUAL -->
+      <div class="conveyor-card">
+        <div class="cv-header">
+          <span class="cv-title">🏭 Alur Konveyor — Line Production</span>
+          <div class="belt-speed-info">
+            Kecepatan Belt: <strong id="beltSpeedInfo">60%</strong>
+            &nbsp;|&nbsp; Mode: <strong id="modeInfo" style="color:#6366f1">AUTO</strong>
+          </div>
+        </div>
+
+        <!-- STATIONS -->
+        <div class="stations">
+          <div class="station" id="st-inlet">
+            <div class="stn-top">
+              <div class="stn-dot green"></div>
+              <div class="stn-icon">📥</div>
+            </div>
+            <div class="stn-name">Inlet</div>
+            <div class="stn-cnt" id="cnt-inlet">0</div>
+          </div>
+          <div class="stn-arrow">→</div>
+          <div class="station" id="st-ir1">
+            <div class="stn-top">
+              <div class="stn-dot green"></div>
+              <div class="stn-icon">👁️</div>
+            </div>
+            <div class="stn-name">IR Sensor</div>
+            <div class="stn-cnt" id="cnt-ir1">0</div>
+          </div>
+          <div class="stn-arrow">→</div>
+          <div class="station" id="st-stamp">
+            <div class="stn-top">
+              <div class="stn-dot green" id="dot-stamp"></div>
+              <div class="stn-icon">🔨</div>
+            </div>
+            <div class="stn-name">Stampling</div>
+            <div class="stn-cnt" id="cnt-stamp">0</div>
+          </div>
+          <div class="stn-arrow">→</div>
+          <div class="station" id="st-ir2">
+            <div class="stn-top">
+              <div class="stn-dot green"></div>
+              <div class="stn-icon">🔍</div>
+            </div>
+            <div class="stn-name">Sensor IR 2</div>
+            <div class="stn-cnt" id="cnt-ir2">0</div>
+          </div>
+          <div class="stn-arrow">→</div>
+          <div class="station" id="st-outlet">
+            <div class="stn-top">
+              <div class="stn-dot green"></div>
+              <div class="stn-icon">📤</div>
+            </div>
+            <div class="stn-name">Outlet</div>
+            <div class="stn-cnt" id="cnt-outlet">0</div>
+          </div>
+          <div class="stn-arrow" style="color:#f43f5e">⤵</div>
+          <div class="station" id="st-reject-box">
+            <div class="stn-top">
+              <div class="stn-dot red" id="dot-reject"></div>
+              <div class="stn-icon">🗑️</div>
+            </div>
+            <div class="stn-name">Reject Box</div>
+            <div class="stn-cnt" id="cnt-reject-box" style="color:#f43f5e">0</div>
+          </div>
+        </div>
+
+        <!-- BELT -->
+        <div class="belt-wrap" id="beltWrap">
+          <div class="roller rl-left"></div>
+          <div class="belt-track" id="beltTrack">
+            <div class="belt-surf" id="beltSurf">
+              <!-- stripes generated by JS -->
+            </div>
+            <div class="belt-items" id="beltItems"></div>
+          </div>
+          <div class="roller rl-right"></div>
+        </div>
+
+        <!-- CONVEYOR OFF OVERLAY -->
+        <div class="belt-off-overlay" id="beltOffOverlay">
+          <div class="off-msg">⏸ Konveyor Berhenti</div>
+          <div class="off-sub">Tekan tombol ON untuk memulai</div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div class="charts-row">
+        <div class="chart-card chart-lg">
+          <div class="chart-hdr">
+            <span class="chart-ttl">Throughput Real-time</span>
+            <span class="chip chip-green">Live</span>
+          </div>
+          <canvas id="thrChart" height="120"></canvas>
+        </div>
+        <div class="chart-card chart-sm">
+          <div class="chart-hdr">
+            <span class="chart-ttl">Status Produksi</span>
+          </div>
+          <canvas id="donutChart" height="140"></canvas>
+          <div class="donut-leg">
+            <div><span style="background:#6366f1"></span>Stamp</div>
+            <div><span style="background:#f43f5e"></span>Reject</div>
+            <div><span style="background:#06b6d4"></span>Proses</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOG -->
+      <div class="log-card">
+        <div class="log-hdr">📋 Event Log</div>
+        <div class="log-body" id="logBody"></div>
+      </div>
+
+    </div><!-- /dashboard-area -->
+  </div><!-- /main-grid -->
+
+  <script src="script.js"></script>
+</body>
+
+</html>
