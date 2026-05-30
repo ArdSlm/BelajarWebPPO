@@ -396,59 +396,77 @@ function initMqtt() {
     addLog('MQTT.js tidak tersedia di browser', 'err');
     return;
   }
+  // Expose debugging hooks
+  window.__mqttDebug = window.__mqttDebug || { attempts: 0, lastError: null };
 
-  mqttClient = mqtt.connect(MQTT_BROKER, {
-    username: MQTT_USERNAME,
-    password: MQTT_PASSWORD,
-    clientId: createClientId(),
-    reconnectPeriod: 3000,
-    connectTimeout: 10000,
-    clean: true,
-    keepalive: 30,
-  });
-
-  mqttClient.on('connect', () => {
-    mqttConnected = true;
-    setConnectionBanner('MQTT Connected', true);
-    addLog('MQTT Connected', 'ok');
-
-    mqttClient.subscribe(TOPIC_STATUS, { qos: 0 }, (error) => {
-      if (error) {
-        console.error('MQTT Error', error);
-        addLog('Gagal subscribe topic status', 'err');
-      }
+  const tryConnect = (attempt = 1) => new Promise((resolve) => {
+    window.__mqttDebug.attempts = attempt;
+    let done = false;
+    const client = mqtt.connect(MQTT_BROKER, {
+      username: MQTT_USERNAME,
+      password: MQTT_PASSWORD,
+      clientId: createClientId(),
+      reconnectPeriod: 0, // handle reconnects manually
+      connectTimeout: 8000,
+      clean: true,
+      keepalive: 30,
     });
+
+    const tidy = () => { try { client.end(true); } catch (e) {} };
+
+    const onSuccess = () => {
+      if (done) return; done = true;
+      mqttClient = client;
+      mqttConnected = true;
+      setConnectionBanner('MQTT Connected', true);
+      addLog('MQTT Connected', 'ok');
+
+      client.subscribe(TOPIC_STATUS, { qos: 0 }, (err) => {
+        if (err) { console.error('MQTT Error', err); addLog('Gagal subscribe topic status', 'err'); }
+      });
+
+      client.on('close', () => { mqttConnected = false; setConnectionBanner('MQTT Disconnected', false); });
+      client.on('offline', () => { mqttConnected = false; setConnectionBanner('MQTT Disconnected', false); });
+      client.on('error', (err) => { console.error('MQTT Error', err); window.__mqttDebug.lastError = String(err); addLog('MQTT Error', 'err'); setConnectionBanner('MQTT Error', false); });
+      client.on('message', (topic, message) => {
+        if (topic !== TOPIC_STATUS) return;
+        try { const parsed = JSON.parse(message.toString()); if (parsed && typeof parsed === 'object') applyStatusPayload(parsed); }
+        catch (err) { console.error('MQTT Error', err); addLog('Payload MQTT status tidak valid', 'err'); }
+      });
+
+      resolve({ ok: true, client });
+    };
+
+    const onError = (err) => {
+      if (done) return; done = true;
+      window.__mqttDebug.lastError = String(err || 'error');
+      tidy();
+      resolve({ ok: false, error: String(err) });
+    };
+
+    client.once('connect', onSuccess);
+    client.once('error', onError);
+
+    // safety timeout
+    setTimeout(() => {
+      if (done) return;
+      done = true;
+      window.__mqttDebug.lastError = 'connect-timeout';
+      tidy();
+      resolve({ ok: false, error: 'timeout' });
+    }, 9000);
   });
 
-  mqttClient.on('close', () => {
-    mqttConnected = false;
-    setConnectionBanner('MQTT Disconnected', false);
-  });
-
-  mqttClient.on('offline', () => {
-    mqttConnected = false;
-    setConnectionBanner('MQTT Disconnected', false);
-  });
-
-  mqttClient.on('error', (error) => {
-    console.error('MQTT Error', error);
-    setConnectionBanner('MQTT Error', false);
-    addLog('MQTT Error', 'err');
-  });
-
-  mqttClient.on('message', (topic, message) => {
-    if (topic !== TOPIC_STATUS) return;
-
-    try {
-      const parsed = JSON.parse(message.toString());
-      if (parsed && typeof parsed === 'object') {
-        applyStatusPayload(parsed);
-      }
-    } catch (error) {
-      console.error('MQTT Error', error);
-      addLog('Payload MQTT status tidak valid', 'err');
+  // try a few times with backoff
+  (async () => {
+    for (let i = 1; i <= 3; i++) {
+      const r = await tryConnect(i);
+      if (r.ok) return;
+      addLog(`Percobaan koneksi MQTT ${i} gagal: ${r.error}`, 'err');
+      await new Promise(s => setTimeout(s, 1500 * i));
     }
-  });
+    setConnectionBanner('MQTT Disconnected', false);
+  })();
 }
 
 // ════════════════════════════════
