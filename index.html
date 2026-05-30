@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SISTEM STAMPLING & PENGHITUNGAN BARANG - KELOMPOK 4</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -89,6 +90,10 @@
           <span>PRESS STAMP</span>
         </button>
         <div class="manual-note" id="manualNote">Aktifkan mode MANUAL terlebih dahulu</div>
+        <div class="speed-presets" style="margin-top:8px">
+          <button class="preset-btn" onclick="sendServo2()">SERVO2</button>
+          <button class="preset-btn" onclick="sendStepper()">STEPPER</button>
+        </div>
       </div>
 
       <div class="divider"></div>
@@ -163,6 +168,12 @@
           <div class="belt-speed-info">
             Kecepatan Belt: <strong id="beltSpeedInfo">60%</strong>
             &nbsp;|&nbsp; Mode: <strong id="modeInfo" style="color:#6366f1">AUTO</strong>
+            &nbsp;|&nbsp; Conveyor: <strong id="conveyorInfo">OFF</strong>
+          </div>
+          <div class="belt-speed-info">
+            Servo1: <strong id="servo1Info">IDLE</strong>
+            &nbsp;|&nbsp; Servo2: <strong id="servo2Info">IDLE</strong>
+            &nbsp;|&nbsp; Stepper: <strong id="stepperInfo">READY</strong>
           </div>
         </div>
 

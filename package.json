@@ -1,0 +1,9 @@
+{
+  "name": "belajar-web-ppo",
+  "version": "1.0.0",
+  "description": "Dashboard Stampling - serverless helpers for Vercel",
+  "private": true,
+  "dependencies": {
+    "mqtt": "^4.3.7"
+  }
+}
