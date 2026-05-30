@@ -309,17 +309,17 @@ function publishCommand(command, extra = {}) {
   const payload = { command, ...extra };
 
   // First try serverless endpoint (recommended for hiding credentials)
-  try {
-    const resp = await fetch('/api/publish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (resp.ok) return true;
-    // fallthrough to try direct MQTT if endpoint fails
-  } catch (e) {
-    // ignore fetch errors and try direct mqtt publish below
-  }
+  fetch('/api/publish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).then((resp) => {
+    if (!resp.ok) {
+      console.warn('Publish endpoint returned non-OK status');
+    }
+  }).catch((e) => {
+    console.warn('Publish endpoint failed, falling back to direct MQTT publish', e);
+  });
 
   // Fallback: direct MQTT publish from browser (requires client credentials)
   if (!mqttClient || !mqttConnected) {
@@ -457,16 +457,22 @@ function initMqtt() {
     }, 9000);
   });
 
-  // try a few times with backoff
-  (async () => {
-    for (let i = 1; i <= 3; i++) {
-      const r = await tryConnect(i);
+  // try a few times with backoff, without await
+  const retryConnect = (attempt) => {
+    tryConnect(attempt).then((r) => {
       if (r.ok) return;
-      addLog(`Percobaan koneksi MQTT ${i} gagal: ${r.error}`, 'err');
-      await new Promise(s => setTimeout(s, 1500 * i));
-    }
-    setConnectionBanner('MQTT Disconnected', false);
-  })();
+
+      addLog(`Percobaan koneksi MQTT ${attempt} gagal: ${r.error}`, 'err');
+
+      if (attempt < 3) {
+        setTimeout(() => retryConnect(attempt + 1), 1500 * attempt);
+      } else {
+        setConnectionBanner('MQTT Disconnected', false);
+      }
+    });
+  };
+
+  retryConnect(1);
 }
 
 // ════════════════════════════════
@@ -532,6 +538,10 @@ window.sendStepper = function () {
   else addLog('Command STEPPER gagal dikirim', 'err');
 };
 
+window.pressStamp = window.manualStamp;
+window.runServo2 = window.sendServo2;
+window.runStepper = window.sendStepper;
+
 window.toggleSensor = function (id, chk) {
   sensorState[id] = chk.checked;
   addLog(`Sensor ${id} ${chk.checked ? 'diaktifkan' : 'dinonaktifkan'}`, chk.checked ? 'ok' : 'warn');
@@ -554,6 +564,8 @@ window.resetSystem = function () {
 
   updateUI();
 };
+
+window.resetCounter = window.resetSystem;
 
 // ════════════════════════════════
 //  INIT
