@@ -305,21 +305,13 @@ function updateUI() {
   donutChart.update('none');
 }
 
-function publishCommand(command, extra = {}) {
+function publishCommand(command, value) {
+  // Backwards-compatible: if `value` is an object, spread it; otherwise send as { value }
+  let extra = {};
+  if (value !== undefined && value !== null) {
+    extra = (typeof value === 'object') ? value : { value };
+  }
   const payload = { command, ...extra };
-
-  // First try serverless endpoint (recommended for hiding credentials)
-  fetch('/api/publish', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).then((resp) => {
-    if (!resp.ok) {
-      console.warn('Publish endpoint returned non-OK status');
-    }
-  }).catch((e) => {
-    console.warn('Publish endpoint failed, falling back to direct MQTT publish', e);
-  });
 
   // Fallback: direct MQTT publish from browser (requires client credentials)
   if (!mqttClient || !mqttConnected) {
@@ -376,6 +368,25 @@ function applyStatusPayload(payload) {
 
     setMachineInfo(payload);
 
+    // Update minimal vision/process UI if present in payload
+    try {
+      const vEl = document.getElementById('visionLabel');
+      const vConfEl = document.getElementById('visionConfidence');
+      const procEl = document.getElementById('process');
+
+      if (payload.vision && typeof payload.vision === 'object') {
+        if (vEl && payload.vision.label !== undefined) vEl.textContent = String(payload.vision.label);
+        if (vConfEl && payload.vision.confidence !== undefined) vConfEl.textContent = String(payload.vision.confidence);
+      } else {
+        if (vEl && payload.visionLabel !== undefined) vEl.textContent = String(payload.visionLabel);
+        if (vConfEl && payload.visionConfidence !== undefined) vConfEl.textContent = String(payload.visionConfidence);
+      }
+
+      if (procEl && payload.process !== undefined) procEl.textContent = String(payload.process);
+    } catch (e) {
+      // non-fatal
+    }
+
     if (payload.ir1 === 1) flashStn('ir1');
     if (payload.ir2 === 1) flashStn('ir2');
 
@@ -419,6 +430,7 @@ function initMqtt() {
       mqttClient = client;
       mqttConnected = true;
       setConnectionBanner('MQTT Connected', true);
+      console.log('MQTT Connected');
       addLog('MQTT Connected', 'ok');
 
       client.subscribe(TOPIC_STATUS, { qos: 0 }, (err) => {
