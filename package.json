@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Dashboard Stampling - serverless helpers for Vercel",
   "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "vercel-build": "node build.mjs"
+  },
   "dependencies": {
     "mqtt": "^4.3.7"
   }

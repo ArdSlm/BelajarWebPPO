@@ -7,6 +7,7 @@
   <title>SISTEM STAMPLING & PENGHITUNGAN BARANG - KELOMPOK 4</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="config.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -53,10 +54,6 @@
           <button class="btn-main btn-on" id="btnOn" onclick="conveyorOn()">▶ ON</button>
           <button class="btn-main btn-off" id="btnOff" onclick="conveyorOff()" disabled>■ OFF</button>
         </div>
-        <div class="mode-row">
-          <button class="mode-btn active" id="modeAuto" onclick="setMode('auto')">AUTO</button>
-          <button class="mode-btn" id="modeManual" onclick="setMode('manual')">MANUAL</button>
-        </div>
       </div>
 
       <div class="divider"></div>
@@ -73,54 +70,6 @@
         <div class="speed-labels">
           <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
         </div>
-        <div class="speed-presets">
-          <button class="preset-btn" onclick="setSpeed(25)">Lambat</button>
-          <button class="preset-btn active" onclick="setSpeed(60)">Sedang</button>
-          <button class="preset-btn" onclick="setSpeed(100)">Cepat</button>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- MANUAL STAMP -->
-      <div class="ctrl-section">
-        <div class="ctrl-label">Stampling Manual</div>
-        <button class="btn-stamp" id="btnStamp" onclick="manualStamp()" disabled>
-          <span class="stamp-icon">🔨</span>
-          <span>PRESS STAMP</span>
-        </button>
-        <div class="manual-note" id="manualNote">Aktifkan mode MANUAL terlebih dahulu</div>
-        <div class="speed-presets" style="margin-top:8px">
-          <button class="preset-btn" onclick="sendServo2()">SERVO2</button>
-          <button class="preset-btn" onclick="sendStepper()">STEPPER</button>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- SENSOR OVERRIDE -->
-      <div class="ctrl-section">
-        <div class="ctrl-label">Sensor Override</div>
-        <div class="toggle-row">
-          <span class="tg-label">Sensor IR Inlet</span>
-          <label class="toggle"><input type="checkbox" checked onchange="toggleSensor('ir-inlet',this)"><span
-              class="tg-track"></span></label>
-        </div>
-        <div class="toggle-row">
-          <span class="tg-label">Unit Stampling</span>
-          <label class="toggle"><input type="checkbox" checked onchange="toggleSensor('stamp',this)"><span
-              class="tg-track"></span></label>
-        </div>
-        <div class="toggle-row">
-            <span class="tg-label">Sensor IR 2</span>
-          <label class="toggle"><input type="checkbox" checked onchange="toggleSensor('qc',this)"><span
-              class="tg-track"></span></label>
-        </div>
-        <div class="toggle-row">
-          <span class="tg-label">Reject Gate</span>
-          <label class="toggle"><input type="checkbox" checked onchange="toggleSensor('reject',this)"><span
-              class="tg-track"></span></label>
-        </div>
       </div>
 
       <div class="divider"></div>
@@ -134,30 +83,50 @@
 
       <!-- STAT CARDS -->
       <div class="stat-row">
+        <div class="scard" style="--accent:#22c55e">
+          <div class="sc-icon">▶</div>
+          <div class="sc-val" id="sc-run">OFF</div>
+          <div class="sc-label">System Run</div>
+        </div>
+        <div class="scard" style="--accent:#06b6d4">
+          <div class="sc-icon">🛞</div>
+          <div class="sc-val" id="sc-motor">-</div>
+          <div class="sc-label">Motor Conveyor</div>
+        </div>
+        <div class="scard" style="--accent:#a78bfa">
+          <div class="sc-icon">⚙</div>
+          <div class="sc-val" id="sc-state">-</div>
+          <div class="sc-label">State / Process</div>
+        </div>
+        <div class="scard" style="--accent:#10b981">
+          <div class="sc-icon">👁️</div>
+          <div class="sc-val" id="sc-ir1">0</div>
+          <div class="sc-label">Sensor IR1</div>
+        </div>
+        <div class="scard" style="--accent:#f97316">
+          <div class="sc-icon">👁️</div>
+          <div class="sc-val" id="sc-ir2">0</div>
+          <div class="sc-label">Sensor IR2</div>
+        </div>
         <div class="scard" style="--accent:#6366f1">
           <div class="sc-icon">📦</div>
           <div class="sc-val" id="sc-total">0</div>
-          <div class="sc-label">Total Masuk</div>
+          <div class="sc-label">Total Barang</div>
         </div>
-        <div class="scard" style="--accent:#06b6d4">
+        <div class="scard" style="--accent:#14b8a6">
           <div class="sc-icon">🔖</div>
-          <div class="sc-val" id="sc-stamped">0</div>
-          <div class="sc-label">Terstempel</div>
-        </div>
-        <div class="scard" style="--accent:#f43f5e">
-          <div class="sc-icon">❌</div>
-          <div class="sc-val" id="sc-reject">0</div>
-          <div class="sc-label">Reject</div>
-        </div>
-        <div class="scard" style="--accent:#10b981">
-          <div class="sc-icon">✅</div>
-          <div class="sc-val" id="sc-rate">0.0%</div>
-          <div class="sc-label">Akurasi</div>
+          <div class="sc-val" id="sc-stamping">0</div>
+          <div class="sc-label">Total Stamping</div>
         </div>
         <div class="scard" style="--accent:#f59e0b">
           <div class="sc-icon">⚡</div>
-          <div class="sc-val" id="sc-pwm">60%</div>
-          <div class="sc-label">PWM Motor</div>
+          <div class="sc-val" id="sc-pwm">0</div>
+          <div class="sc-label">PWM</div>
+        </div>
+        <div class="scard" style="--accent:#38bdf8">
+          <div class="sc-icon">📶</div>
+          <div class="sc-val" id="sc-wifi">0 dBm</div>
+          <div class="sc-label">WiFi RSSI</div>
         </div>
         <div class="scard" style="--accent:#8b5cf6">
           <div class="sc-icon">🔎</div>
@@ -172,14 +141,14 @@
         <div class="cv-header">
           <span class="cv-title">🏭 Alur Konveyor — Line Production</span>
           <div class="belt-speed-info">
-            Kecepatan Belt: <strong id="beltSpeedInfo">60%</strong>
-            &nbsp;|&nbsp; Mode: <strong id="modeInfo" style="color:#6366f1">AUTO</strong>
-            &nbsp;|&nbsp; Conveyor: <strong id="conveyorInfo">OFF</strong>
+            System Run: <strong id="runInfo">OFF</strong>
+            &nbsp;|&nbsp; Motor: <strong id="motorInfo">-</strong>
+            &nbsp;|&nbsp; State: <strong id="stateInfo">-</strong>
           </div>
           <div class="belt-speed-info">
-            Servo1: <strong id="servo1Info">IDLE</strong>
-            &nbsp;|&nbsp; Servo2: <strong id="servo2Info">IDLE</strong>
-            &nbsp;|&nbsp; Stepper: <strong id="stepperInfo">READY</strong>
+            IR1: <strong id="ir1Info">0</strong>
+            &nbsp;|&nbsp; IR2: <strong id="ir2Info">0</strong>
+            &nbsp;|&nbsp; WiFi RSSI: <strong id="wifiInfo">0 dBm</strong>
           </div>
         </div>
 
@@ -190,7 +159,7 @@
               <div class="stn-dot green"></div>
               <div class="stn-icon">📥</div>
             </div>
-            <div class="stn-name">Inlet</div>
+            <div class="stn-name">Total Barang</div>
             <div class="stn-cnt" id="cnt-inlet">0</div>
           </div>
           <div class="stn-arrow">→</div>
@@ -199,7 +168,7 @@
               <div class="stn-dot green"></div>
               <div class="stn-icon">👁️</div>
             </div>
-            <div class="stn-name">IR Sensor</div>
+            <div class="stn-name">IR1</div>
             <div class="stn-cnt" id="cnt-ir1">0</div>
           </div>
           <div class="stn-arrow">→</div>
@@ -208,7 +177,7 @@
               <div class="stn-dot green" id="dot-stamp"></div>
               <div class="stn-icon">🔨</div>
             </div>
-            <div class="stn-name">Stampling</div>
+            <div class="stn-name">Stamping</div>
             <div class="stn-cnt" id="cnt-stamp">0</div>
           </div>
           <div class="stn-arrow">→</div>
@@ -217,7 +186,7 @@
               <div class="stn-dot green"></div>
               <div class="stn-icon">🔍</div>
             </div>
-            <div class="stn-name">Sensor IR 2</div>
+            <div class="stn-name">IR2</div>
             <div class="stn-cnt" id="cnt-ir2">0</div>
           </div>
           <div class="stn-arrow">→</div>
@@ -226,17 +195,8 @@
               <div class="stn-dot green"></div>
               <div class="stn-icon">📤</div>
             </div>
-            <div class="stn-name">Outlet</div>
+            <div class="stn-name">Process</div>
             <div class="stn-cnt" id="cnt-outlet">0</div>
-          </div>
-          <div class="stn-arrow" style="color:#f43f5e">⤵</div>
-          <div class="station" id="st-reject-box">
-            <div class="stn-top">
-              <div class="stn-dot red" id="dot-reject"></div>
-              <div class="stn-icon">🗑️</div>
-            </div>
-            <div class="stn-name">Reject Box</div>
-            <div class="stn-cnt" id="cnt-reject-box" style="color:#f43f5e">0</div>
           </div>
         </div>
 
@@ -263,20 +223,19 @@
       <div class="charts-row">
         <div class="chart-card chart-lg">
           <div class="chart-hdr">
-            <span class="chart-ttl">Throughput Real-time</span>
+            <span class="chart-ttl">Realtime Counter Barang</span>
             <span class="chip chip-green">Live</span>
           </div>
           <canvas id="thrChart" height="120"></canvas>
         </div>
         <div class="chart-card chart-sm">
           <div class="chart-hdr">
-            <span class="chart-ttl">Status Produksi</span>
+            <span class="chart-ttl">MQTT Status</span>
           </div>
-          <canvas id="donutChart" height="140"></canvas>
-          <div class="donut-leg">
-            <div><span style="background:#6366f1"></span>Stamp</div>
-            <div><span style="background:#f43f5e"></span>Reject</div>
-            <div><span style="background:#06b6d4"></span>Proses</div>
+          <div class="status-mini" id="statusMini">
+            <div><span>Connected</span><strong id="miniConn">Disconnected</strong></div>
+            <div><span>Last Cmd</span><strong id="miniCmd">-</strong></div>
+            <div><span>Last Status</span><strong id="miniStatus">-</strong></div>
           </div>
         </div>
       </div>

@@ -145,7 +145,6 @@ input:checked+.tg-track::after{left:18px}
 .belt-items{position:absolute;inset:0;pointer-events:none}
 .belt-item{position:absolute;top:50%;transform:translateY(-50%);width:24px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;animation:itemMove var(--spd,4s) linear forwards;border:1.5px solid rgba(0,0,0,.1)}
 .belt-item.ok{background:rgba(92,199,255,.28)}
-.belt-item.reject{background:rgba(239,68,68,.28)}
 @keyframes itemMove{from{left:-40px}to{left:calc(100% + 40px)}}
 
 /* BELT OFF OVERLAY */
@@ -166,6 +165,10 @@ input:checked+.tg-track::after{left:18px}
 	align-items:center;
 	justify-content:center;
 }
+.status-mini{display:flex;flex-direction:column;gap:10px;width:100%;margin-top:4px}
+.status-mini div{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:10px;background:rgba(92,199,255,.08);border:1px solid rgba(92,199,255,.12)}
+.status-mini span{font-size:.8rem;color:#a8b4c0}
+.status-mini strong{font-size:.86rem;color:#ffffff}
 .chart-sm canvas{
 	width:180px !important;
 	height:180px !important;

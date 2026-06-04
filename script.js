@@ -1,74 +1,63 @@
 // ════════════════════════════════
 //  MQTT CONFIG
 // ════════════════════════════════
-const MQTT_BROKER = "wss://68c31b50ae9e4ae79325b503da99b709.s1.eu.hivemq.cloud:8884/mqtt";
-const MQTT_USERNAME = "ardisalim";
-const MQTT_PASSWORD = "Tarlina06)";
-const TOPIC_STATUS = "kelompok4/stamping/status";
-const TOPIC_CMD = "kelompok4/stamping/cmd";
+const MQTT_BROKER = 'wss://68c31b50ae9e4ae79325b503da99b709.s1.eu.hivemq.cloud:8884/mqtt';
+const TOPIC_STATUS = 'kelompok4/stamping/status';
+const TOPIC_CMD = 'kelompok4/stamping/cmd';
+
+const MQTT_USERNAME = window.HIVEMQ_USERNAME || '';
+const MQTT_PASSWORD = window.HIVEMQ_PASSWORD || '';
 
 // ════════════════════════════════
 //  STATE
 // ════════════════════════════════
-let running = false;
-let mode = 'auto';
-let pwm = 60;
-let total = 0;
-let stamped = 0;
-let rejectCount = 0;
 let mqttClient = null;
 let mqttConnected = false;
-let isApplyingRemoteState = false;
-let lastThroughputSample = null;
+let latestStatus = {
+  run: false,
+  motor: '-',
+  state: '-',
+  ir1: 0,
+  ir2: 0,
+  counter_barang: 0,
+  counter_stamping: 0,
+  pwm: 0,
+  wifi: 0,
+};
 
-const stCounts = { inlet: 0, ir1: 0, stamp: 0, ir2: 0, outlet: 0, 'reject-box': 0 };
-const sensorState = { 'ir-inlet': true, stamp: true, qc: true, reject: true };
+const chartHistory = Array(24).fill(0);
+const chartLabels = Array(24).fill('');
 
-const thrData = Array(25).fill(0);
-const thrLabels = Array(25).fill('');
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function createClientId() {
-  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-    return 'web-dashboard-' + window.crypto.randomUUID();
-  }
-  return 'web-dashboard-' + Math.random().toString(16).slice(2, 10);
-}
-
-// ════════════════════════════════
-//  CLOCK
-// ════════════════════════════════
-function tick() {
+function updateClock() {
   const clock = document.getElementById('clock');
-  if (!clock) return;
-  clock.textContent = new Date().toLocaleTimeString('id-ID');
+  if (clock) {
+    clock.textContent = new Date().toLocaleTimeString('id-ID');
+  }
 }
-setInterval(tick, 1000);
-tick();
+setInterval(updateClock, 1000);
+updateClock();
 
-// ════════════════════════════════
-//  CHART.JS DEFAULTS
-// ════════════════════════════════
 Chart.defaults.font.family = 'Segoe UI';
 Chart.defaults.font.size = 12;
 Chart.defaults.color = '#a8b4c0';
 
-// ── Throughput Chart ──
 const thrCtx = document.getElementById('thrChart').getContext('2d');
 const thrChart = new Chart(thrCtx, {
   type: 'line',
   data: {
-    labels: [...thrLabels],
+    labels: [...chartLabels],
     datasets: [{
-      label: 'Unit/menit',
-      data: [...thrData],
+      label: 'Total Barang',
+      data: [...chartHistory],
       borderColor: '#5cc7ff',
       backgroundColor: 'rgba(92,199,255,.12)',
       fill: true,
-      tension: 0.45,
+      tension: 0.35,
       pointRadius: 0,
       borderWidth: 2.5,
     }]
@@ -84,437 +73,212 @@ const thrChart = new Chart(thrCtx, {
         bodyColor: '#c8d4e0',
         borderColor: 'rgba(92,199,255,.32)',
         borderWidth: 1,
-        callbacks: { label: c => ` ${c.parsed.y} unit/menit` }
+        callbacks: { label: (context) => ` ${context.parsed.y} barang` }
       }
     },
     scales: {
       x: { display: false },
       y: {
+        beginAtZero: true,
         grid: { color: 'rgba(92,199,255,.12)' },
-        ticks: { color: '#7a8a9a' },
-        min: 0,
-        max: 25
+        ticks: { color: '#7a8a9a' }
       }
     }
   }
 });
 
-// ── Donut Chart ──
-const donutCtx = document.getElementById('donutChart').getContext('2d');
-const donutChart = new Chart(donutCtx, {
-  type: 'doughnut',
-  data: {
-    labels: ['Terstempel', 'Reject', 'Proses'],
-    datasets: [{
-      data: [0, 0, 0],
-      backgroundColor: ['#5cc7ff', '#ef4444', '#6eb3ff'],
-      borderWidth: 2,
-      borderColor: 'rgba(106,82,77,.95)',
-      hoverOffset: 4
-    }]
-  },
-  options: {
-    cutout: '68%',
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: 'rgba(20,28,45,.96)',
-        titleColor: '#ffffff',
-        bodyColor: '#c8d4e0',
-        borderColor: 'rgba(92,199,255,.32)',
-        borderWidth: 1
-      }
-    }
-  }
-});
+function logMessage(message, type = 'ok') {
+  console.log(message);
+  const body = document.getElementById('logBody');
+  if (!body) return;
 
-// ════════════════════════════════
-//  BELT SETUP
-// ════════════════════════════════
-(function buildBelt() {
-  const surf = document.getElementById('beltSurf');
-  if (surf) surf.innerHTML = '';
-})();
-
-function setBeltAnimation() {
-  const surf = document.getElementById('beltSurf');
-  if (!surf) return;
-
-  if (!running) {
-    surf.classList.remove('running');
-    return;
-  }
-
-  const dur = (6 - (pwm / 100) * 5).toFixed(2) + 's';
-  surf.style.setProperty('--dur', dur);
-  surf.classList.add('running');
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString('id-ID')}</span><div class="log-dot ${type}"></div><span>${message}</span>`;
+  body.prepend(item);
+  if (body.children.length > 40) body.lastChild.remove();
 }
 
-function setConnectionBanner(text, connected) {
+function setConnectionState(connected, label) {
+  mqttConnected = connected;
   const pill = document.getElementById('systemStatus');
   const statusText = document.getElementById('statusText');
-  if (!pill || !statusText) return;
+  const miniConn = document.getElementById('miniConn');
 
-  statusText.textContent = text;
-  pill.classList.toggle('off', !connected);
+  if (statusText) statusText.textContent = label;
+  if (miniConn) miniConn.textContent = connected ? 'Connected' : 'Disconnected';
+  if (pill) {
+    pill.classList.toggle('off', !connected);
+  }
 
-  const dot = pill.querySelector('.sp-dot');
+  const dot = pill ? pill.querySelector('.sp-dot') : null;
   if (dot) {
     dot.style.background = connected ? '#22c55e' : '#f97316';
     dot.style.animation = connected ? 'pulse 1.2s infinite' : 'none';
   }
 }
 
-function addLog(msg, type = 'ok') {
-  const body = document.getElementById('logBody');
-  if (!body) return;
-
-  const el = document.createElement('div');
-  el.className = 'log-item';
-  el.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString('id-ID')}</span>
-    <div class="log-dot ${type}"></div><span>${msg}</span>`;
-  body.prepend(el);
-  if (body.children.length > 40) body.lastChild.remove();
-}
-
-function flashStn(id) {
-  const el = document.getElementById('st-' + id);
-  if (!el) return;
-  el.classList.add('active');
-  setTimeout(() => el.classList.remove('active'), 350);
-}
-
-function setMachineInfo(payload) {
-  const conveyorInfo = document.getElementById('conveyorInfo');
-  const servo1Info = document.getElementById('servo1Info');
-  const servo2Info = document.getElementById('servo2Info');
-  const stepperInfo = document.getElementById('stepperInfo');
-
-  if (conveyorInfo) conveyorInfo.textContent = running ? 'ON' : 'OFF';
-  if (servo1Info && payload.servo1 !== undefined) servo1Info.textContent = String(payload.servo1);
-  if (servo2Info && payload.servo2 !== undefined) servo2Info.textContent = String(payload.servo2);
-  if (stepperInfo && payload.stepper !== undefined) stepperInfo.textContent = String(payload.stepper);
-}
-
-function syncControlStateUI() {
-  const btnOn = document.getElementById('btnOn');
-  const btnOff = document.getElementById('btnOff');
-  const stampBtn = document.getElementById('btnStamp');
-  const modeAuto = document.getElementById('modeAuto');
-  const modeManual = document.getElementById('modeManual');
-  const modeInfo = document.getElementById('modeInfo');
-  const note = document.getElementById('manualNote');
-  const beltOffOverlay = document.getElementById('beltOffOverlay');
-  const conveyorInfo = document.getElementById('conveyorInfo');
-
-  if (btnOn) btnOn.disabled = running;
-  if (btnOff) btnOff.disabled = !running;
-  if (stampBtn) stampBtn.disabled = !(running && mode === 'manual');
-
-  if (modeAuto) modeAuto.classList.toggle('active', mode === 'auto');
-  if (modeManual) modeManual.classList.toggle('active', mode === 'manual');
-  if (modeInfo) {
-    modeInfo.textContent = mode.toUpperCase();
-    modeInfo.style.color = mode === 'auto' ? '#22d3ff' : '#ffbb6b';
-  }
-  if (conveyorInfo) conveyorInfo.textContent = running ? 'ON' : 'OFF';
-  if (beltOffOverlay) beltOffOverlay.classList.toggle('show', !running);
-
-  if (note) {
-    if (!running) {
-      note.textContent = 'Hidupkan konveyor terlebih dahulu';
-      note.style.color = '#88abd2';
-    } else if (mode === 'manual') {
-      note.textContent = 'Klik PRESS STAMP untuk stampling manual';
-      note.style.color = '#ffbb6b';
-    } else {
-      note.textContent = 'Aktifkan mode MANUAL terlebih dahulu';
-      note.style.color = '#88abd2';
-    }
-  }
-
-  setBeltAnimation();
-}
-
-function setPwmUI(value) {
-  pwm = clamp(parseInt(value, 10) || 0, 0, 100);
-
-  const speedVal = document.getElementById('speedVal');
-  const scPwm = document.getElementById('sc-pwm');
-  const beltSpeedInfo = document.getElementById('beltSpeedInfo');
-  const slider = document.getElementById('speedSlider');
-
-  if (speedVal) speedVal.textContent = pwm;
-  if (scPwm) scPwm.textContent = pwm + '%';
-  if (beltSpeedInfo) beltSpeedInfo.textContent = pwm + '%';
-  if (slider) slider.style.background = `linear-gradient(90deg, #5cc7ff ${pwm}%, rgba(92,199,255,.2) ${pwm}%)`;
-
-  document.querySelectorAll('.preset-btn').forEach((button) => button.classList.remove('active'));
-  const presets = document.querySelectorAll('.preset-btn');
-  if (presets.length >= 3) {
-    if (pwm <= 30) presets[0].classList.add('active');
-    else if (pwm <= 70) presets[1].classList.add('active');
-    else presets[2].classList.add('active');
-  }
-
-  setBeltAnimation();
-}
-
-function updateThroughputFromStatus(totalValue) {
-  const now = Date.now();
-  if (!lastThroughputSample) {
-    lastThroughputSample = { total: totalValue, time: now };
-    return;
-  }
-
-  const deltaUnits = Math.max(0, totalValue - lastThroughputSample.total);
-  const deltaMinutes = Math.max((now - lastThroughputSample.time) / 60000, 1 / 60);
-  const unitsPerMinute = Math.round(deltaUnits / deltaMinutes);
-
-  thrData.push(unitsPerMinute);
-  thrData.shift();
-  thrChart.data.datasets[0].data = [...thrData];
+function updateChart(totalBarang) {
+  chartHistory.push(totalBarang);
+  chartHistory.shift();
+  thrChart.data.datasets[0].data = [...chartHistory];
   thrChart.update('none');
-
-  lastThroughputSample = { total: totalValue, time: now };
 }
 
-function updateUI() {
-  const totalEl = document.getElementById('sc-total');
-  const stampedEl = document.getElementById('sc-stamped');
-  const rejectEl = document.getElementById('sc-reject');
-  const rateEl = document.getElementById('sc-rate');
-
-  if (totalEl) totalEl.textContent = total.toLocaleString('id-ID');
-  if (stampedEl) stampedEl.textContent = stamped.toLocaleString('id-ID');
-  if (rejectEl) rejectEl.textContent = rejectCount.toLocaleString('id-ID');
-
-  const rate = total > 0 ? ((stamped / total) * 100).toFixed(1) : '0.0';
-  if (rateEl) rateEl.textContent = rate + '%';
-
-  document.getElementById('sc-pwm').textContent = pwm + '%';
-
-  Object.entries(stCounts).forEach(([key, value]) => {
-    const el = document.getElementById('cnt-' + key);
-    if (el) el.textContent = value;
-  });
-
-  const inProc = Math.max(0, total - stamped - rejectCount);
-  donutChart.data.datasets[0].data = [stamped, rejectCount, inProc];
-  donutChart.update('none');
-}
-
-function publishCommand(command, value) {
-  // Backwards-compatible: if `value` is an object, spread it; otherwise send as { value }
-  let extra = {};
-  if (value !== undefined && value !== null) {
-    extra = (typeof value === 'object') ? value : { value };
-  }
-  const payload = { command, ...extra };
-
-  // Fallback: direct MQTT publish from browser (requires client credentials)
-  if (!mqttClient || !mqttConnected) {
-    console.error('MQTT Error', new Error('MQTT not connected'));
-    return false;
-  }
-
-  try {
-    const body = JSON.stringify(payload);
-    mqttClient.publish(TOPIC_CMD, body);
-    return true;
-  } catch (error) {
-    console.error('MQTT Error', error);
-    return false;
-  }
-}
-
-function applyStatusPayload(payload) {
-  isApplyingRemoteState = true;
-  try {
-    if (typeof payload.running === 'boolean') running = payload.running;
-    if (typeof payload.conveyor === 'string') running = payload.conveyor.toUpperCase() === 'ON';
-
-    if (typeof payload.mode === 'string') {
-      const nextMode = payload.mode.toLowerCase();
-      mode = nextMode === 'manual' ? 'manual' : 'auto';
-    }
-
-    if (payload.pwm !== undefined && payload.pwm !== null) {
-      pwm = clamp(parseInt(payload.pwm, 10) || 0, 0, 100);
-    }
-
-    if (payload.total !== undefined && payload.total !== null) {
-      total = Math.max(0, Number(payload.total) || 0);
-    }
-    if (payload.stamped !== undefined && payload.stamped !== null) {
-      stamped = Math.max(0, Number(payload.stamped) || 0);
-    }
-    if (payload.reject !== undefined && payload.reject !== null) {
-      rejectCount = Math.max(0, Number(payload.reject) || 0);
-    }
-
-    if (payload.ir1 !== undefined && payload.ir1 !== null) {
-      stCounts.ir1 = Number(payload.ir1) || 0;
-    }
-    if (payload.ir2 !== undefined && payload.ir2 !== null) {
-      stCounts.ir2 = Number(payload.ir2) || 0;
-    }
-
-    stCounts.inlet = total;
-    stCounts.stamp = stamped;
-    stCounts.outlet = stamped + rejectCount;
-    stCounts['reject-box'] = rejectCount;
-
-    setMachineInfo(payload);
-
-    // Update minimal vision/process UI if present in payload
-    try {
-      const vEl = document.getElementById('visionLabel');
-      const vConfEl = document.getElementById('visionConfidence');
-      const procEl = document.getElementById('process');
-
-      if (payload.vision && typeof payload.vision === 'object') {
-        if (vEl && payload.vision.label !== undefined) vEl.textContent = String(payload.vision.label);
-        if (vConfEl && payload.vision.confidence !== undefined) vConfEl.textContent = String(payload.vision.confidence);
-      } else {
-        if (vEl && payload.visionLabel !== undefined) vEl.textContent = String(payload.visionLabel);
-        if (vConfEl && payload.visionConfidence !== undefined) vConfEl.textContent = String(payload.visionConfidence);
-      }
-
-      if (procEl && payload.process !== undefined) procEl.textContent = String(payload.process);
-    } catch (e) {
-      // non-fatal
-    }
-
-    if (payload.ir1 === 1) flashStn('ir1');
-    if (payload.ir2 === 1) flashStn('ir2');
-
-    updateThroughputFromStatus(total);
-  } finally {
-    isApplyingRemoteState = false;
-  }
-
-  syncControlStateUI();
-  setPwmUI(pwm);
-  updateUI();
-}
-
-function initMqtt() {
-  if (!window.mqtt) {
-    console.error('MQTT Error', new Error('MQTT.js not loaded'));
-    setConnectionBanner('MQTT Error', false);
-    addLog('MQTT.js tidak tersedia di browser', 'err');
-    return;
-  }
-  // Expose debugging hooks
-  window.__mqttDebug = window.__mqttDebug || { attempts: 0, lastError: null };
-
-  const tryConnect = (attempt = 1) => new Promise((resolve) => {
-    window.__mqttDebug.attempts = attempt;
-    let done = false;
-    const client = mqtt.connect(MQTT_BROKER, {
-      username: MQTT_USERNAME,
-      password: MQTT_PASSWORD,
-      clientId: createClientId(),
-      reconnectPeriod: 0, // handle reconnects manually
-      connectTimeout: 8000,
-      clean: true,
-      keepalive: 30,
-    });
-
-    const tidy = () => { try { client.end(true); } catch (e) {} };
-
-    const onSuccess = () => {
-      if (done) return; done = true;
-      mqttClient = client;
-      mqttConnected = true;
-      setConnectionBanner('MQTT Connected', true);
-      console.log('MQTT Connected');
-      addLog('MQTT Connected', 'ok');
-
-      client.subscribe(TOPIC_STATUS, { qos: 0 }, (err) => {
-        if (err) { console.error('MQTT Error', err); addLog('Gagal subscribe topic status', 'err'); }
-      });
-
-      client.on('close', () => { mqttConnected = false; setConnectionBanner('MQTT Disconnected', false); });
-      client.on('offline', () => { mqttConnected = false; setConnectionBanner('MQTT Disconnected', false); });
-      client.on('error', (err) => { console.error('MQTT Error', err); window.__mqttDebug.lastError = String(err); addLog('MQTT Error', 'err'); setConnectionBanner('MQTT Error', false); });
-      client.on('message', (topic, message) => {
-        if (topic !== TOPIC_STATUS) return;
-        try { const parsed = JSON.parse(message.toString()); if (parsed && typeof parsed === 'object') applyStatusPayload(parsed); }
-        catch (err) { console.error('MQTT Error', err); addLog('Payload MQTT status tidak valid', 'err'); }
-      });
-
-      resolve({ ok: true, client });
-    };
-
-    const onError = (err) => {
-      if (done) return; done = true;
-      window.__mqttDebug.lastError = String(err || 'error');
-      tidy();
-      resolve({ ok: false, error: String(err) });
-    };
-
-    client.once('connect', onSuccess);
-    client.once('error', onError);
-
-    // safety timeout
-    setTimeout(() => {
-      if (done) return;
-      done = true;
-      window.__mqttDebug.lastError = 'connect-timeout';
-      tidy();
-      resolve({ ok: false, error: 'timeout' });
-    }, 9000);
-  });
-
-  // try a few times with backoff, without await
-  const retryConnect = (attempt) => {
-    tryConnect(attempt).then((r) => {
-      if (r.ok) return;
-
-      addLog(`Percobaan koneksi MQTT ${attempt} gagal: ${r.error}`, 'err');
-
-      if (attempt < 3) {
-        setTimeout(() => retryConnect(attempt + 1), 1500 * attempt);
-      } else {
-        setConnectionBanner('MQTT Disconnected', false);
-      }
-    });
+function updateDashboardFromStatus(data) {
+  latestStatus = {
+    run: Boolean(data.run),
+    motor: data.motor ?? '-',
+    state: data.state ?? '-',
+    ir1: toNumber(data.ir1),
+    ir2: toNumber(data.ir2),
+    counter_barang: toNumber(data.counter_barang),
+    counter_stamping: toNumber(data.counter_stamping),
+    pwm: toNumber(data.pwm),
+    wifi: toNumber(data.wifi),
   };
 
-  retryConnect(1);
+  const runText = latestStatus.run ? 'ON' : 'OFF';
+  const wifiText = `${latestStatus.wifi} dBm`;
+
+  const mapping = {
+    'sc-run': runText,
+    'sc-motor': latestStatus.motor,
+    'sc-state': latestStatus.state,
+    'sc-ir1': String(latestStatus.ir1),
+    'sc-ir2': String(latestStatus.ir2),
+    'sc-total': String(latestStatus.counter_barang),
+    'sc-stamping': String(latestStatus.counter_stamping),
+    'sc-pwm': String(latestStatus.pwm),
+    'sc-wifi': wifiText,
+    'runInfo': runText,
+    'motorInfo': latestStatus.motor,
+    'stateInfo': latestStatus.state,
+    'ir1Info': String(latestStatus.ir1),
+    'ir2Info': String(latestStatus.ir2),
+    'wifiInfo': wifiText,
+    'cnt-inlet': String(latestStatus.counter_barang),
+    'cnt-ir1': String(latestStatus.ir1),
+    'cnt-stamp': String(latestStatus.counter_stamping),
+    'cnt-ir2': String(latestStatus.ir2),
+    'cnt-outlet': String(latestStatus.counter_barang),
+    'miniStatus': latestStatus.state,
+  };
+
+  Object.entries(mapping).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  });
+
+  updateChart(latestStatus.counter_barang);
+  const miniCmd = document.getElementById('miniCmd');
+  if (miniCmd) miniCmd.textContent = `PWM ${latestStatus.pwm}`;
+
+  const conveyorInfo = document.getElementById('conveyorInfo');
+  if (conveyorInfo) conveyorInfo.textContent = runText;
 }
 
-// ════════════════════════════════
-//  COMMAND HANDLERS
-// ════════════════════════════════
+function publishCommand(payload) {
+  if (!mqttClient || !mqttConnected) {
+    logMessage('MQTT publish failed: disconnected', 'err');
+    return false;
+  }
+
+  const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  try {
+    mqttClient.publish(TOPIC_CMD, message);
+    logMessage(`Publish ${message}`, 'ok');
+    return true;
+  } catch (error) {
+    console.error('MQTT publish error', error);
+    logMessage(`Publish error: ${error}`, 'err');
+    return false;
+  }
+}
+
+function connectMqtt() {
+  if (!window.mqtt) {
+    console.error('MQTT.js not loaded');
+    setConnectionState(false, 'MQTT Error');
+    return;
+  }
+
+  if (!MQTT_USERNAME || !MQTT_PASSWORD) {
+    console.warn('MQTT credentials are missing from config.js');
+    logMessage('MQTT credentials missing from config.js', 'warn');
+  }
+
+  mqttClient = mqtt.connect(MQTT_BROKER, {
+    username: MQTT_USERNAME,
+    password: MQTT_PASSWORD,
+    clientId: `dashboard-${Math.random().toString(16).slice(2, 10)}`,
+    reconnectPeriod: 3000,
+    connectTimeout: 8000,
+    clean: true,
+    keepalive: 30,
+  });
+
+  mqttClient.on('connect', () => {
+    setConnectionState(true, 'MQTT Connected');
+    logMessage('MQTT Connected', 'ok');
+    mqttClient.subscribe(TOPIC_STATUS, (error) => {
+      if (error) {
+        console.error('Subscribe error', error);
+        logMessage(`Subscribe error: ${error}`, 'err');
+      } else {
+        logMessage(`Subscribed ${TOPIC_STATUS}`, 'ok');
+      }
+    });
+  });
+
+  mqttClient.on('message', (topic, message) => {
+    if (topic !== TOPIC_STATUS) return;
+    try {
+      const parsed = JSON.parse(message.toString());
+      console.log('MQTT status received', parsed);
+      logMessage(`Status received: ${message.toString()}`, 'ok');
+      updateDashboardFromStatus(parsed);
+    } catch (error) {
+      console.error('Status JSON error', error);
+      logMessage(`Status JSON error: ${error}`, 'err');
+    }
+  });
+
+  mqttClient.on('close', () => {
+    setConnectionState(false, 'MQTT Disconnected');
+    logMessage('MQTT Disconnected', 'warn');
+  });
+
+  mqttClient.on('offline', () => {
+    setConnectionState(false, 'MQTT Disconnected');
+  });
+
+  mqttClient.on('error', (error) => {
+    console.error('MQTT Error', error);
+    setConnectionState(false, 'MQTT Error');
+    logMessage(`MQTT Error: ${error}`, 'err');
+  });
+}
+
 window.conveyorOn = function () {
-  running = true;
-  syncControlStateUI();
-  if (publishCommand('START')) addLog('Command START dikirim', 'ok');
-  else addLog('Command START gagal dikirim', 'err');
+  publishCommand('START');
 };
 
 window.conveyorOff = function () {
-  running = false;
-  syncControlStateUI();
-  if (publishCommand('STOP')) addLog('Command STOP dikirim', 'warn');
-  else addLog('Command STOP gagal dikirim', 'err');
+  publishCommand('STOP');
 };
 
-window.setMode = function (nextMode) {
-  mode = nextMode === 'manual' ? 'manual' : 'auto';
-  syncControlStateUI();
-  if (publishCommand(mode.toUpperCase())) addLog(`Command ${mode.toUpperCase()} dikirim`, 'ok');
-  else addLog(`Command ${mode.toUpperCase()} gagal dikirim`, 'err');
+window.resetSystem = function () {
+  publishCommand('RESET_COUNTER');
 };
 
 window.updateSpeed = function (value) {
-  setPwmUI(value);
-  if (publishCommand('SET_PWM', { value: pwm })) addLog(`Command SET_PWM dikirim: ${pwm}`, 'ok');
-  else addLog('Command SET_PWM gagal dikirim', 'err');
+  const pwmValue = toNumber(value);
+  const speedVal = document.getElementById('speedVal');
+  const scPwm = document.getElementById('sc-pwm');
+  if (speedVal) speedVal.textContent = String(pwmValue);
+  if (scPwm) scPwm.textContent = String(pwmValue);
+  publishCommand({ command: 'SET_PWM', value: pwmValue });
 };
 
 window.setSpeed = function (value) {
@@ -523,71 +287,34 @@ window.setSpeed = function (value) {
   window.updateSpeed(value);
 };
 
-window.manualStamp = function () {
-  if (!running || mode !== 'manual') return;
-
-  const btn = document.getElementById('btnStamp');
-  if (btn) {
-    btn.classList.add('stamp-flash');
-    setTimeout(() => btn.classList.remove('stamp-flash'), 500);
-  }
-
-  if (publishCommand('SERVO1')) addLog('Command SERVO1 dikirim', 'ok');
-  else addLog('Command SERVO1 gagal dikirim', 'err');
+window.setMode = function () {
+  logMessage('Mode controls disabled in MQTT-only dashboard', 'warn');
 };
 
-window.sendServo1 = function () {
-  window.manualStamp();
+window.pressStamp = function () {
+  logMessage('pressStamp disabled in MQTT-only dashboard', 'warn');
 };
 
-window.sendServo2 = function () {
-  if (publishCommand('SERVO2')) addLog('Command SERVO2 dikirim', 'ok');
-  else addLog('Command SERVO2 gagal dikirim', 'err');
+window.runServo2 = function () {
+  logMessage('runServo2 disabled in MQTT-only dashboard', 'warn');
 };
 
-window.sendStepper = function () {
-  if (publishCommand('STEPPER')) addLog('Command STEPPER dikirim', 'ok');
-  else addLog('Command STEPPER gagal dikirim', 'err');
+window.runStepper = function () {
+  logMessage('runStepper disabled in MQTT-only dashboard', 'warn');
 };
 
-window.pressStamp = window.manualStamp;
-window.runServo2 = window.sendServo2;
-window.runStepper = window.sendStepper;
-
-window.toggleSensor = function (id, chk) {
-  sensorState[id] = chk.checked;
-  addLog(`Sensor ${id} ${chk.checked ? 'diaktifkan' : 'dinonaktifkan'}`, chk.checked ? 'ok' : 'warn');
-};
-
-window.resetSystem = function () {
-  total = 0;
-  stamped = 0;
-  rejectCount = 0;
-  Object.keys(stCounts).forEach((key) => {
-    stCounts[key] = 0;
-  });
-  thrData.fill(0);
-  thrChart.data.datasets[0].data = [...thrData];
-  thrChart.update('none');
-  lastThroughputSample = null;
-
-  if (publishCommand('RESET_COUNTER')) addLog('Command RESET_COUNTER dikirim', 'ok');
-  else addLog('Command RESET_COUNTER gagal dikirim', 'err');
-
-  updateUI();
-};
-
+window.manualStamp = window.pressStamp;
+window.sendServo2 = window.runServo2;
+window.sendStepper = window.runStepper;
 window.resetCounter = window.resetSystem;
 
-// ════════════════════════════════
-//  INIT
-// ════════════════════════════════
-setConnectionBanner('MQTT Disconnected', false);
-setPwmUI(60);
-syncControlStateUI();
-updateUI();
-setBeltAnimation();
-initMqtt();
+function init() {
+  setConnectionState(false, 'MQTT Disconnected');
+  updateDashboardFromStatus(latestStatus);
+  const slider = document.getElementById('speedSlider');
+  if (slider) window.updateSpeed(slider.value);
+  connectMqtt();
+  logMessage('Dashboard MQTT siap', 'ok');
+}
 
-addLog('Dashboard siap menerima data MQTT', 'ok');
-addLog('Menunggu status dari ESP32', 'warn');
+init();
