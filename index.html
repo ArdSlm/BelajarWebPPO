@@ -240,6 +240,47 @@
         <div class="log-body" id="logBody"></div>
       </div>
 
+      <!-- ══ RIWAYAT PRODUKSI ══ -->
+      <div class="history-card">
+        <div class="history-hdr">
+          <span class="history-title">📊 Riwayat Produksi</span>
+          <div class="history-actions">
+            <button class="btn-save-prod" id="btnSaveProd" onclick="saveProduction()">
+              💾 Save Hasil Produksi
+            </button>
+            <button class="btn-csv" id="btnDownloadCsv" onclick="downloadCSV()">
+              ⬇️ Download CSV
+            </button>
+            <button class="btn-reset-hist" id="btnResetHistory" onclick="resetHistory()">
+              🗑️ Reset Riwayat
+            </button>
+          </div>
+        </div>
+        <div class="history-count">Total tersimpan: <strong id="historyCount">0</strong> record</div>
+        <div class="history-table-wrap">
+          <table class="history-table" id="historyTable">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Tanggal</th>
+                <th>Jam</th>
+                <th>Total Barang</th>
+                <th>Total Stamping</th>
+                <th>PWM</th>
+                <th>Motor</th>
+                <th>State</th>
+                <th>WiFi RSSI</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr class="history-empty">
+                <td colspan="9">Belum ada data tersimpan. Tekan "Save Hasil Produksi" untuk menyimpan.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div><!-- /dashboard-area -->
   </div><!-- /main-grid -->
 

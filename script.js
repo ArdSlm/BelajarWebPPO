@@ -334,3 +334,131 @@ function init() {
 }
 
 init();
+
+// ════════════════════════════════
+//  PRODUCTION HISTORY (localStorage)
+// ════════════════════════════════
+const LS_KEY = 'produksi_stamping_history';
+
+/** Baca history dari localStorage */
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+  } catch (e) {
+    console.error('loadHistory error:', e);
+    return [];
+  }
+}
+
+/** Tulis history ke localStorage */
+function saveHistory(history) {
+  localStorage.setItem(LS_KEY, JSON.stringify(history));
+}
+
+/** Render tabel riwayat produksi dari history array */
+function renderHistoryTable() {
+  const history = loadHistory();
+  const tbody   = document.getElementById('historyBody');
+  const counter = document.getElementById('historyCount');
+  if (!tbody) return;
+
+  if (counter) counter.textContent = history.length;
+
+  if (history.length === 0) {
+    tbody.innerHTML = '<tr class="history-empty"><td colspan="9">Belum ada data tersimpan. Tekan "Save Hasil Produksi" untuk menyimpan.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = history.map((row, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${row.tanggal}</td>
+      <td>${row.jam}</td>
+      <td>${row.counter_barang}</td>
+      <td>${row.counter_stamping}</td>
+      <td>${row.pwm}</td>
+      <td>${row.motor}</td>
+      <td>${row.state}</td>
+      <td>${row.wifi} dBm</td>
+    </tr>
+  `).join('');
+}
+
+/** Simpan snapshot produksi saat ini ke localStorage */
+window.saveProduction = function () {
+  const record = {
+    id              : Date.now(),
+    tanggal         : new Date().toLocaleDateString('id-ID'),
+    jam             : new Date().toLocaleTimeString('id-ID'),
+    counter_barang  : latestStatus.counter_barang,
+    counter_stamping: latestStatus.counter_stamping,
+    pwm             : latestStatus.pwm,
+    motor           : latestStatus.motor,
+    state           : latestStatus.state,
+    wifi            : latestStatus.wifi,
+  };
+
+  const history = loadHistory();
+  history.push(record);
+  saveHistory(history);
+  renderHistoryTable();
+
+  console.log('✅ Data produksi berhasil disimpan:', record);
+  logMessage(`Produksi disimpan: ${record.counter_barang} barang, ${record.counter_stamping} stamp`, 'ok');
+
+  // Visual flash pada tombol
+  const btn = document.getElementById('btnSaveProd');
+  if (btn) {
+    btn.classList.add('flash');
+    setTimeout(() => btn.classList.remove('flash'), 600);
+  }
+};
+
+/** Download semua riwayat sebagai file CSV */
+window.downloadCSV = function () {
+  const history = loadHistory();
+  if (history.length === 0) {
+    alert('Belum ada data riwayat produksi untuk di-download.');
+    return;
+  }
+
+  const headers = ['No', 'Tanggal', 'Jam', 'Total Barang', 'Total Stamping', 'PWM', 'Motor', 'State', 'WiFi RSSI (dBm)'];
+  const rows    = history.map((row, idx) => [
+    idx + 1,
+    row.tanggal,
+    row.jam,
+    row.counter_barang,
+    row.counter_stamping,
+    row.pwm,
+    row.motor,
+    row.state,
+    row.wifi,
+  ]);
+
+  // BOM agar Excel baca UTF-8 dengan benar
+  const BOM    = '\uFEFF';
+  const csvStr = BOM + [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\r\n');
+
+  const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'hasil_produksi_stamping.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  console.log('✅ CSV berhasil di-download:', history.length, 'record');
+  logMessage(`CSV downloaded: ${history.length} record`, 'ok');
+};
+
+/** Hapus semua riwayat produksi setelah konfirmasi */
+window.resetHistory = function () {
+  if (!confirm(`Yakin ingin menghapus semua riwayat produksi (${loadHistory().length} record)?\nData tidak bisa dikembalikan.`)) return;
+  localStorage.removeItem(LS_KEY);
+  renderHistoryTable();
+  console.log('🗑️ Riwayat produksi dihapus');
+  logMessage('Riwayat produksi direset', 'warn');
+};
+
+// Render tabel saat halaman pertama kali dibuka
+renderHistoryTable();
