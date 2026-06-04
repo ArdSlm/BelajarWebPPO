@@ -1,12 +1,13 @@
 // ════════════════════════════════
 //  MQTT CONFIG
 // ════════════════════════════════
-const MQTT_BROKER = 'wss://68c31b50ae9e4ae79325b503da99b709.s1.eu.hivemq.cloud:8884/mqtt';
-const TOPIC_STATUS = 'kelompok4/stamping/status';
-const TOPIC_CMD = 'kelompok4/stamping/cmd';
+const MQTT_BROKER    = 'wss://68c31b50ae9e4ae79325b503da99b709.s1.eu.hivemq.cloud:8884/mqtt';
+const TOPIC_STATUS   = 'kelompok4/stamping/status';
+const TOPIC_CMD      = 'kelompok4/stamping/cmd';
 
-const MQTT_USERNAME = window.HIVEMQ_USERNAME || '';
-const MQTT_PASSWORD = window.HIVEMQ_PASSWORD || '';
+// Credentials hardcoded agar pasti tersedia saat koneksi
+const MQTT_USERNAME  = 'ardisalim';
+const MQTT_PASSWORD  = 'Tarlina06)';
 
 // ════════════════════════════════
 //  STATE
@@ -200,23 +201,23 @@ function publishCommand(payload) {
 
 function connectMqtt() {
   if (!window.mqtt) {
-    console.error('MQTT.js not loaded');
+    console.error('MQTT.js not loaded! Pastikan CDN mqtt.min.js termuat.');
     setConnectionState(false, 'MQTT Error');
+    logMessage('MQTT.js library tidak ditemukan', 'err');
     return;
   }
 
-  if (!MQTT_USERNAME || !MQTT_PASSWORD) {
-    console.warn('MQTT credentials are missing from config.js');
-    logMessage('MQTT credentials missing from config.js', 'warn');
-  }
-
-  console.log('Connecting to MQTT broker:', MQTT_BROKER);
-  console.log('MQTT credentials:', { username: MQTT_USERNAME, passwordSet: !!MQTT_PASSWORD });
+  const clientId = `WEB-STAMPING-${Math.random().toString(16).substring(2, 10)}`;
+  console.log('=== MQTT CONNECT ===');
+  console.log('Broker :', MQTT_BROKER);
+  console.log('Protocol: wss / port 8884');
+  console.log('Username:', MQTT_USERNAME);
+  console.log('ClientId:', clientId);
 
   mqttClient = mqtt.connect(MQTT_BROKER, {
     username: MQTT_USERNAME,
     password: MQTT_PASSWORD,
-    clientId: `WEB-STAMPING-${Math.random().toString(16).substring(2, 10)}`,
+    clientId,
     reconnectPeriod: 2000,
     connectTimeout: 10000,
     clean: true,
@@ -244,7 +245,7 @@ function connectMqtt() {
   });
 
   mqttClient.on('close', () => {
-    console.log('MQTT connection closed');
+    console.log('MQTT closed / disconnected');
     setConnectionState(false, 'MQTT Disconnected');
     logMessage('MQTT Disconnected', 'warn');
   });
@@ -290,13 +291,19 @@ window.resetSystem = function () {
   publishCommand('RESET_COUNTER');
 };
 
+// PWM slider: nilai slider 0-100 (persen) → konversi ke 0-255 (raw ESP32)
 window.updateSpeed = function (value) {
-  const pwmValue = toNumber(value);
+  const pct    = toNumber(value);              // 0–100 dari slider
+  const pwmRaw = Math.round((pct / 100) * 255); // 0–255 untuk ESP32
+
   const speedVal = document.getElementById('speedVal');
-  const scPwm = document.getElementById('sc-pwm');
-  if (speedVal) speedVal.textContent = String(pwmValue);
-  if (scPwm) scPwm.textContent = String(pwmValue);
-  publishCommand({ command: 'SET_PWM', value: pwmValue });
+  const scPwm    = document.getElementById('sc-pwm');
+  if (speedVal) speedVal.textContent = String(pct);
+  if (scPwm)    scPwm.textContent    = String(pwmRaw);
+
+  const payload = JSON.stringify({ command: 'SET_PWM', value: pwmRaw });
+  console.log('PWM sent:', payload, `(slider=${pct}%, raw=${pwmRaw})`);
+  publishCommand({ command: 'SET_PWM', value: pwmRaw });
 };
 
 window.setSpeed = function (value) {
@@ -305,25 +312,14 @@ window.setSpeed = function (value) {
   window.updateSpeed(value);
 };
 
-window.setMode = function () {
-  logMessage('Mode controls disabled in MQTT-only dashboard', 'warn');
-};
-
-window.pressStamp = function () {
-  logMessage('pressStamp disabled in MQTT-only dashboard', 'warn');
-};
-
-window.runServo2 = function () {
-  logMessage('runServo2 disabled in MQTT-only dashboard', 'warn');
-};
-
-window.runStepper = function () {
-  logMessage('runStepper disabled in MQTT-only dashboard', 'warn');
-};
-
-window.manualStamp = window.pressStamp;
-window.sendServo2 = window.runServo2;
-window.sendStepper = window.runStepper;
+// ── Legacy/no-op stubs (YOLO/vision fitur tidak digunakan) ──
+window.setMode      = function () { /* disabled */ };
+window.pressStamp   = function () { /* disabled */ };
+window.manualStamp  = function () { /* disabled */ };
+window.runServo2    = function () { /* disabled */ };
+window.sendServo2   = function () { /* disabled */ };
+window.runStepper   = function () { /* disabled */ };
+window.sendStepper  = function () { /* disabled */ };
 window.resetCounter = window.resetSystem;
 
 function init() {
