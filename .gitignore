@@ -9,3 +9,5 @@ node_modules/
 public/
 .vercel/output/
 .env
+.venv/
+__pycache__/
