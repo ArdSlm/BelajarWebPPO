@@ -1,2 +1,2 @@
-window.HIVEMQ_USERNAME = "";
-window.HIVEMQ_PASSWORD = "";
+window.HIVEMQ_USERNAME = "ardisalim";
+window.HIVEMQ_PASSWORD = "Tarlina06)";

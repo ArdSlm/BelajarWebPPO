@@ -1,21 +1,24 @@
-#include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESP32Servo.h>
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 
+// WiFi credentials
 const char *WIFI_SSID = "EKO";
 const char *WIFI_PASS = "alhamdulillah";
 
+// HiveMQ Cloud credentials
 const char *MQTT_HOST = "68c31b50ae9e4ae79325b503da99b709.s1.eu.hivemq.cloud";
 const uint16_t MQTT_PORT = 8883;
 const char *MQTT_USER = "ardisalim";
 const char *MQTT_PASS = "Tarlina06)";
 
+// MQTT topics
 const char *TOPIC_STATUS = "kelompok4/stamping/status";
 const char *TOPIC_CMD = "kelompok4/stamping/cmd";
 
+// GPIO mapping
 const uint8_t PIN_IR1 = 32;
 const uint8_t PIN_IR2 = 33;
 const uint8_t PIN_SERVO1 = 26;
@@ -25,6 +28,7 @@ const uint8_t PIN_STEPPER_PUL = 18;
 const uint8_t PIN_STEPPER_DIR = 19;
 const uint8_t PIN_STEPPER_EN = 23; // enable pin for TB6600
 
+// Behavior tuning
 const bool IR_ACTIVE_LOW = true;
 const int CONVEYOR_PWM_CHANNEL = 0;
 const int CONVEYOR_PWM_FREQ = 5000;

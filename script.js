@@ -180,6 +180,7 @@ function updateDashboardFromStatus(data) {
 
 function publishCommand(payload) {
   if (!mqttClient || !mqttConnected) {
+    console.warn('MQTT belum connected');
     logMessage('MQTT publish failed: disconnected', 'err');
     return false;
   }
@@ -187,10 +188,11 @@ function publishCommand(payload) {
   const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
   try {
     mqttClient.publish(TOPIC_CMD, message);
+    console.log('Command sent:', message);
     logMessage(`Publish ${message}`, 'ok');
     return true;
   } catch (error) {
-    console.error('MQTT publish error', error);
+    console.error('MQTT publish error:', error);
     logMessage(`Publish error: ${error}`, 'err');
     return false;
   }
@@ -208,55 +210,71 @@ function connectMqtt() {
     logMessage('MQTT credentials missing from config.js', 'warn');
   }
 
+  console.log('Connecting to MQTT broker:', MQTT_BROKER);
+  console.log('MQTT credentials:', { username: MQTT_USERNAME, passwordSet: !!MQTT_PASSWORD });
+
   mqttClient = mqtt.connect(MQTT_BROKER, {
     username: MQTT_USERNAME,
     password: MQTT_PASSWORD,
-    clientId: `dashboard-${Math.random().toString(16).slice(2, 10)}`,
-    reconnectPeriod: 3000,
-    connectTimeout: 8000,
+    clientId: `WEB-STAMPING-${Math.random().toString(16).substring(2, 10)}`,
+    reconnectPeriod: 2000,
+    connectTimeout: 10000,
     clean: true,
     keepalive: 30,
   });
 
   mqttClient.on('connect', () => {
+    console.log('MQTT connected');
     setConnectionState(true, 'MQTT Connected');
     logMessage('MQTT Connected', 'ok');
     mqttClient.subscribe(TOPIC_STATUS, (error) => {
       if (error) {
-        console.error('Subscribe error', error);
+        console.error('Subscribe error:', error);
         logMessage(`Subscribe error: ${error}`, 'err');
       } else {
+        console.log('Subscribed to:', TOPIC_STATUS);
         logMessage(`Subscribed ${TOPIC_STATUS}`, 'ok');
       }
     });
   });
 
-  mqttClient.on('message', (topic, message) => {
-    if (topic !== TOPIC_STATUS) return;
-    try {
-      const parsed = JSON.parse(message.toString());
-      console.log('MQTT status received', parsed);
-      logMessage(`Status received: ${message.toString()}`, 'ok');
-      updateDashboardFromStatus(parsed);
-    } catch (error) {
-      console.error('Status JSON error', error);
-      logMessage(`Status JSON error: ${error}`, 'err');
-    }
+  mqttClient.on('reconnect', () => {
+    console.log('MQTT reconnecting...');
+    logMessage('MQTT reconnecting...', 'warn');
   });
 
   mqttClient.on('close', () => {
+    console.log('MQTT connection closed');
     setConnectionState(false, 'MQTT Disconnected');
     logMessage('MQTT Disconnected', 'warn');
   });
 
   mqttClient.on('offline', () => {
-    setConnectionState(false, 'MQTT Disconnected');
+    console.log('MQTT offline');
+    setConnectionState(false, 'MQTT Offline');
+    logMessage('MQTT Offline', 'warn');
   });
 
   mqttClient.on('error', (error) => {
-    console.error('MQTT Error', error);
+    console.error('MQTT error:', error);
     setConnectionState(false, 'MQTT Error');
     logMessage(`MQTT Error: ${error}`, 'err');
+  });
+
+  mqttClient.on('message', (topic, message) => {
+    console.log('MQTT message:', topic, message.toString());
+
+    if (topic === TOPIC_STATUS) {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('Status data received:', data);
+        logMessage(`Status received: ${message.toString()}`, 'ok');
+        updateDashboardFromStatus(data);
+      } catch (error) {
+        console.error('JSON parse error:', error);
+        logMessage(`Status JSON error: ${error}`, 'err');
+      }
+    }
   });
 }
 

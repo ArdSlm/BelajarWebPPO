@@ -1,5 +1,11 @@
 .vercel
 .env*
+.pio/
+*.log
+*.pid
+cloudflare-settings.json
+.cloudflared/
 node_modules/
 public/
 .vercel/output/
+.env
