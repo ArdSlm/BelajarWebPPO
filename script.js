@@ -284,6 +284,8 @@ window.conveyorOn = function () {
 };
 
 window.conveyorOff = function () {
+  console.log('OFF button clicked');
+  console.log('Command sent: STOP');
   publishCommand('STOP');
 };
 
