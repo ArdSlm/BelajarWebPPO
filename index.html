@@ -4,7 +4,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SISTEM STAMPLING & PENGHITUNGAN BARANG - KELOMPOK 4</title>
+  <title>Sistem Stamping Otomatis ESP32 — Kelompok 4</title>
+  <meta name="description" content="Dashboard monitoring sistem stamping otomatis ESP32, Kelompok 4 Praktikum Proyek Otomasi." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script src="config.js"></script>
@@ -15,319 +19,211 @@
 
   <!-- ══ HEADER ══ -->
   <header class="header">
-    <div class="hd-left">
-      <div class="hd-logo">
-        <img src="assets/Undip.png" alt="Logo Undip" class="undip-logo" />
-      </div>
-      <div class="hd-heading">
-        <div class="hd-title">SISTEM STAMPLING &amp; PENGHITUNGAN BARANG</div>
-        <div class="hd-sub">
-          <span class="hd-tag">Kelompok 4</span>
-          <span class="hd-sep">•</span>
-          <span class="hd-course">Praktikum Proyek Otomasi</span>
-        </div>
-      </div>
-      <div class="hd-logo hd-logo-right">
-        <img src="assets/Undip.png" alt="Logo Undip" class="undip-logo" />
+    <div class="header-brand">
+      <img src="assets/Undip.png" alt="Logo Undip" class="header-logo" />
+      <div class="header-text">
+        <div class="header-title">SISTEM STAMPING OTOMATIS ESP32</div>
+        <div class="header-sub">Kelompok 4 &mdash; Praktikum Proyek Otomasi</div>
       </div>
     </div>
-    <div class="hd-right">
-      <div class="status-pill" id="systemStatus">
-        <span class="sp-dot"></span>
-        <span id="statusText">SISTEM AKTIF</span>
+    <div class="header-right">
+      <div class="mqtt-status disconnected" id="systemStatus">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Disconnected</span>
       </div>
-      <div class="hd-clock" id="clock">00:00:00</div>
+      <div class="header-clock" id="clock">00:00:00</div>
     </div>
   </header>
 
-  <!-- ══ MAIN GRID ══ -->
-  <div class="main-grid">
+  <!-- ══ LAYOUT ══ -->
+  <div class="layout">
 
-    <!-- ── LEFT: CONTROL PANEL ── -->
-    <aside class="control-panel">
-      <div class="panel-title">🎛️ Panel Kontrol</div>
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar">
 
-      <!-- CONVEYOR ON/OFF -->
-      <div class="ctrl-section">
+      <div class="sidebar-title">Panel Kontrol</div>
+
+      <!-- Conveyor ON/OFF -->
+      <div class="ctrl-group">
         <div class="ctrl-label">Konveyor</div>
-        <div class="ctrl-row">
-          <button class="btn-main btn-on" id="btnOn" onclick="conveyorOn()">▶ ON</button>
-          <button class="btn-main btn-off" id="btnOff" onclick="conveyorOff()">■ OFF</button>
+        <div class="btn-pair">
+          <button class="btn btn-start" id="btnOn"  onclick="conveyorOn()">▶ START</button>
+          <button class="btn btn-stop"  id="btnOff" onclick="conveyorOff()">■ STOP</button>
         </div>
       </div>
 
-      <div class="divider"></div>
+      <div class="sidebar-divider"></div>
 
-      <!-- SPEED CONTROL -->
-      <div class="ctrl-section">
+      <!-- PWM Slider 0-255 -->
+      <div class="ctrl-group">
         <div class="ctrl-label">Kecepatan Motor (PWM)</div>
-        <div class="speed-display">
-          <span id="speedVal">60</span>
-          <span class="speed-unit">% PWM</span>
+        <div class="pwm-readout">
+          <span class="pwm-val" id="speedVal">210</span>
+          <span class="pwm-unit">/ 255</span>
         </div>
-        <input type="range" class="speed-slider" id="speedSlider" min="0" max="100" value="60"
-          oninput="updateSpeed(this.value)" />
-        <div class="speed-labels">
-          <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        <input type="range" class="pwm-slider" id="speedSlider"
+               min="0" max="255" step="1" value="210"
+               oninput="updateSpeed(this.value)" />
+        <div class="pwm-ticks"><span>0</span><span>128</span><span>255</span></div>
+        <div class="pwm-actual-row">
+          ESP32 aktual: <strong id="sc-pwm">—</strong>
         </div>
       </div>
 
-      <div class="divider"></div>
+      <div class="sidebar-divider"></div>
 
-      <!-- RESET -->
-      <button class="btn-reset" onclick="resetSystem()">🔄 Reset Counter</button>
+      <!-- Reset -->
+      <div class="ctrl-group">
+        <button class="btn btn-secondary" onclick="resetSystem()">🔄 Reset Counter</button>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Log actions -->
+      <div class="ctrl-group">
+        <div class="ctrl-label">Log Proses</div>
+        <button class="btn btn-snapshot" id="btnSaveSnapshot" onclick="saveSnapshot()">
+          💾 Simpan Data Sekarang
+        </button>
+        <button class="btn btn-csv" onclick="downloadProcessCSV()">
+          ⬇️ Download CSV
+        </button>
+        <button class="btn btn-danger-sm" onclick="resetProcessLog()">
+          🗑️ Reset Log
+        </button>
+      </div>
+
     </aside>
 
-    <!-- ── RIGHT: DASHBOARD ── -->
-    <div class="dashboard-area">
+    <!-- ── MAIN CONTENT ── -->
+    <main class="main-content">
 
-      <!-- STAT CARDS -->
-      <div class="stat-row">
-        <div class="scard" style="--accent:#22c55e">
-          <div class="sc-icon">▶</div>
-          <div class="sc-val" id="sc-run">OFF</div>
-          <div class="sc-label">System Run</div>
+      <!-- BIG STATUS CARDS -->
+      <div class="cards-big">
+        <div class="card-big card-off" id="card-run">
+          <div class="cb-icon">▶</div>
+          <div class="cb-val"   id="sc-run">OFF</div>
+          <div class="cb-label">System Run</div>
         </div>
-        <div class="scard" style="--accent:#06b6d4">
-          <div class="sc-icon">🛞</div>
-          <div class="sc-val" id="sc-motor">-</div>
-          <div class="sc-label">Motor Conveyor</div>
+        <div class="card-big">
+          <div class="cb-icon">🛞</div>
+          <div class="cb-val"   id="sc-motor">—</div>
+          <div class="cb-label">Motor Conveyor</div>
         </div>
-        <div class="scard" style="--accent:#a78bfa">
-          <div class="sc-icon">⚙</div>
-          <div class="sc-val" id="sc-state">-</div>
-          <div class="sc-label">State / Process</div>
+        <div class="card-big card-accent-blue">
+          <div class="cb-icon">📦</div>
+          <div class="cb-val"   id="sc-total">0</div>
+          <div class="cb-label">Total Barang</div>
         </div>
-        <div class="scard" style="--accent:#10b981">
-          <div class="sc-icon">👁️</div>
-          <div class="sc-val" id="sc-ir1">0</div>
-          <div class="sc-label">Sensor IR1</div>
-        </div>
-        <div class="scard" style="--accent:#f97316">
-          <div class="sc-icon">👁️</div>
-          <div class="sc-val" id="sc-ir2">0</div>
-          <div class="sc-label">Sensor IR2</div>
-        </div>
-        <div class="scard" style="--accent:#6366f1">
-          <div class="sc-icon">📦</div>
-          <div class="sc-val" id="sc-total">0</div>
-          <div class="sc-label">Total Barang</div>
-        </div>
-        <div class="scard" style="--accent:#14b8a6">
-          <div class="sc-icon">🔖</div>
-          <div class="sc-val" id="sc-stamping">0</div>
-          <div class="sc-label">Total Stamping</div>
-        </div>
-        <div class="scard" style="--accent:#f59e0b">
-          <div class="sc-icon">⚡</div>
-          <div class="sc-val" id="sc-pwm">0</div>
-          <div class="sc-label">PWM</div>
-        </div>
-        <div class="scard" style="--accent:#38bdf8">
-          <div class="sc-icon">📶</div>
-          <div class="sc-val" id="sc-wifi">0 dBm</div>
-          <div class="sc-label">WiFi RSSI</div>
+        <div class="card-big card-accent-teal">
+          <div class="cb-icon">🔖</div>
+          <div class="cb-val"   id="sc-stamping">0</div>
+          <div class="cb-label">Total Stamping</div>
         </div>
       </div>
 
-      <!-- CONVEYOR VISUAL -->
-      <div class="conveyor-card">
-        <div class="cv-header">
-          <span class="cv-title">🏭 Alur Konveyor — Line Production</span>
-          <div class="belt-speed-info">
-            System Run: <strong id="runInfo">OFF</strong>
-            &nbsp;|&nbsp; Motor: <strong id="motorInfo">-</strong>
-            &nbsp;|&nbsp; State: <strong id="stateInfo">-</strong>
-          </div>
-          <div class="belt-speed-info">
-            IR1: <strong id="ir1Info">0</strong>
-            &nbsp;|&nbsp; IR2: <strong id="ir2Info">0</strong>
-            &nbsp;|&nbsp; WiFi RSSI: <strong id="wifiInfo">0 dBm</strong>
-          </div>
+      <!-- SMALL STATUS CARDS -->
+      <div class="cards-small">
+        <div class="card-small">
+          <div class="cs-label">State / Process</div>
+          <div class="cs-val"   id="sc-state">—</div>
         </div>
-
-        <!-- STATIONS -->
-        <div class="stations">
-          <div class="station" id="st-inlet">
-            <div class="stn-top">
-              <div class="stn-dot green"></div>
-              <div class="stn-icon">📥</div>
-            </div>
-            <div class="stn-name">Total Barang</div>
-            <div class="stn-cnt" id="cnt-inlet">0</div>
-          </div>
-          <div class="stn-arrow">→</div>
-          <div class="station" id="st-ir1">
-            <div class="stn-top">
-              <div class="stn-dot green"></div>
-              <div class="stn-icon">👁️</div>
-            </div>
-            <div class="stn-name">IR1</div>
-            <div class="stn-cnt" id="cnt-ir1">0</div>
-          </div>
-          <div class="stn-arrow">→</div>
-          <div class="station" id="st-stamp">
-            <div class="stn-top">
-              <div class="stn-dot green" id="dot-stamp"></div>
-              <div class="stn-icon">🔨</div>
-            </div>
-            <div class="stn-name">Stamping</div>
-            <div class="stn-cnt" id="cnt-stamp">0</div>
-          </div>
-          <div class="stn-arrow">→</div>
-          <div class="station" id="st-ir2">
-            <div class="stn-top">
-              <div class="stn-dot green"></div>
-              <div class="stn-icon">🔍</div>
-            </div>
-            <div class="stn-name">IR2</div>
-            <div class="stn-cnt" id="cnt-ir2">0</div>
-          </div>
-          <div class="stn-arrow">→</div>
-          <div class="station" id="st-outlet">
-            <div class="stn-top">
-              <div class="stn-dot green"></div>
-              <div class="stn-icon">📤</div>
-            </div>
-            <div class="stn-name">Process</div>
-            <div class="stn-cnt" id="cnt-outlet">0</div>
-          </div>
+        <div class="card-small">
+          <div class="cs-label">Sensor IR1</div>
+          <div class="cs-val"   id="sc-ir1">0</div>
         </div>
-
-        <!-- BELT -->
-        <div class="belt-wrap" id="beltWrap">
-          <div class="roller rl-left"></div>
-          <div class="belt-track" id="beltTrack">
-            <div class="belt-surf" id="beltSurf">
-              <!-- stripes generated by JS -->
-            </div>
-            <div class="belt-items" id="beltItems"></div>
-          </div>
-          <div class="roller rl-right"></div>
+        <div class="card-small">
+          <div class="cs-label">Sensor IR2</div>
+          <div class="cs-val"   id="sc-ir2">0</div>
         </div>
-
-        <!-- CONVEYOR OFF OVERLAY -->
-        <div class="belt-off-overlay" id="beltOffOverlay">
-          <div class="off-msg">⏸ Konveyor Berhenti</div>
-          <div class="off-sub">Tekan tombol ON untuk memulai</div>
+        <div class="card-small">
+          <div class="cs-label">PWM Aktual</div>
+          <div class="cs-val"   id="sc-pwm-actual">0</div>
+        </div>
+        <div class="card-small">
+          <div class="cs-label">WiFi RSSI</div>
+          <div class="cs-val"   id="sc-wifi">— dBm</div>
         </div>
       </div>
 
-      <!-- CHARTS ROW -->
-      <div class="charts-row">
-        <div class="chart-card chart-lg">
-          <div class="chart-hdr">
-            <span class="chart-ttl">Realtime Counter Barang</span>
-            <span class="chip chip-green">Live</span>
+      <!-- CONVEYOR FLOW -->
+      <div class="section-card">
+        <div class="section-header">🏭 Alur Produksi</div>
+        <div class="conveyor-flow">
+          <div class="flow-step" id="step-inlet">
+            <div class="fs-icon">📥</div>
+            <div class="fs-name">Barang Masuk</div>
+            <div class="fs-val" id="cnt-inlet">0</div>
           </div>
-          <canvas id="thrChart" height="120"></canvas>
-        </div>
-        <div class="chart-card chart-sm">
-          <div class="chart-hdr">
-            <span class="chart-ttl">MQTT Status</span>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" id="step-ir1">
+            <div class="fs-icon">👁️</div>
+            <div class="fs-name">IR1</div>
+            <div class="fs-val" id="cnt-ir1">0</div>
           </div>
-          <div class="status-mini" id="statusMini">
-            <div><span>Connected</span><strong id="miniConn">Disconnected</strong></div>
-            <div><span>Last Cmd</span><strong id="miniCmd">-</strong></div>
-            <div><span>Last Status</span><strong id="miniStatus">-</strong></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" id="step-stamp">
+            <div class="fs-icon">🔨</div>
+            <div class="fs-name">Stamping</div>
+            <div class="fs-val" id="cnt-stamp">0</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" id="step-ir2">
+            <div class="fs-icon">🔍</div>
+            <div class="fs-name">IR2</div>
+            <div class="fs-val" id="cnt-ir2">0</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step" id="step-outlet">
+            <div class="fs-icon">📤</div>
+            <div class="fs-name">Selesai</div>
+            <div class="fs-val" id="cnt-outlet">0</div>
           </div>
         </div>
       </div>
 
-      <!-- LOG -->
-      <div class="log-card">
-        <div class="log-hdr">📋 Event Log</div>
-        <div class="log-body" id="logBody"></div>
+      <!-- EVENT LOG MQTT -->
+      <div class="section-card">
+        <div class="section-header">📋 Event Log MQTT</div>
+        <div class="event-log" id="logBody"></div>
       </div>
 
-      <!-- ══ DATA LOG PROSES ══ -->
-      <div class="history-card process-log-card">
-        <div class="history-hdr">
-          <span class="history-title">📝 Data Log Proses Produksi</span>
-          <div class="history-actions">
-            <button class="btn-save-prod btn-snapshot" id="btnSaveSnapshot" onclick="saveSnapshot()">
-              💾 Simpan Data Sekarang
-            </button>
-            <button class="btn-csv" id="btnDownloadProcessCsv" onclick="downloadProcessCSV()">
-              ⬇️ Download CSV
-            </button>
-            <button class="btn-reset-hist" id="btnResetProcessLog" onclick="resetProcessLog()">
-              🗑️ Reset Log
-            </button>
-          </div>
+      <!-- PROCESS LOG TABLE -->
+      <div class="section-card">
+        <div class="process-log-top">
+          <div class="section-header" style="margin-bottom:0">📝 Riwayat Log Proses</div>
+          <div class="log-count">Total: <strong id="processLogCount">0</strong> record</div>
         </div>
-        <div class="history-count">Total log: <strong id="processLogCount">0</strong> record</div>
-        <div class="history-table-wrap">
-          <table class="history-table" id="processLogTable">
+        <div class="table-wrap">
+          <table class="log-table" id="processLogTable">
             <thead>
               <tr>
-                <th>No</th>
-                <th>Tanggal</th>
-                <th>Jam</th>
-                <th>Event</th>
-                <th>Run</th>
-                <th>Motor</th>
-                <th>State</th>
-                <th>IR1</th>
-                <th>IR2</th>
-                <th>Barang</th>
-                <th>Stamping</th>
-                <th>PWM</th>
-                <th>WiFi</th>
+                <th>No</th><th>Tanggal</th><th>Jam</th><th>Event</th>
+                <th>Run</th><th>Motor</th><th>State</th>
+                <th>IR1</th><th>IR2</th><th>Barang</th>
+                <th>Stamping</th><th>PWM</th><th>WiFi</th>
               </tr>
             </thead>
             <tbody id="processLogBody">
-              <tr class="history-empty">
-                <td colspan="13">Belum ada log proses. Data akan otomatis tercatat saat ESP32 mengirim perubahan status.</td>
+              <tr class="empty-row">
+                <td colspan="13">Belum ada log proses. Data tercatat otomatis saat ESP32 mengirim perubahan.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- ══ RIWAYAT PRODUKSI ══ -->
-      <div class="history-card">
-        <div class="history-hdr">
-          <span class="history-title">📊 Riwayat Produksi</span>
-          <div class="history-actions">
-            <button class="btn-save-prod" id="btnSaveProd" onclick="saveProduction()">
-              💾 Save Hasil Produksi
-            </button>
-            <button class="btn-csv" id="btnDownloadCsv" onclick="downloadCSV()">
-              ⬇️ Download CSV
-            </button>
-            <button class="btn-reset-hist" id="btnResetHistory" onclick="resetHistory()">
-              🗑️ Reset Riwayat
-            </button>
-          </div>
-        </div>
-        <div class="history-count">Total tersimpan: <strong id="historyCount">0</strong> record</div>
-        <div class="history-table-wrap">
-          <table class="history-table" id="historyTable">
-            <thead>
-              <tr>
-                <th>No</th>
-                <th>Tanggal</th>
-                <th>Jam</th>
-                <th>Total Barang</th>
-                <th>Total Stamping</th>
-                <th>PWM</th>
-                <th>Motor</th>
-                <th>State</th>
-                <th>WiFi RSSI</th>
-              </tr>
-            </thead>
-            <tbody id="historyBody">
-              <tr class="history-empty">
-                <td colspan="9">Belum ada data tersimpan. Tekan "Save Hasil Produksi" untuk menyimpan.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+    </main><!-- /main-content -->
+  </div><!-- /layout -->
 
-    </div><!-- /dashboard-area -->
-  </div><!-- /main-grid -->
+  <!-- Hidden legacy compat elements -->
+  <div style="display:none" aria-hidden="true">
+    <span id="miniConn"></span><span id="miniCmd"></span><span id="miniStatus"></span>
+    <span id="runInfo"></span><span id="motorInfo"></span><span id="stateInfo"></span>
+    <span id="ir1Info"></span><span id="ir2Info"></span><span id="wifiInfo"></span>
+    <span id="conveyorInfo"></span>
+    <span id="historyCount"></span><span id="historyBody"></span>
+  </div>
 
   <script src="script.js"></script>
 </body>
