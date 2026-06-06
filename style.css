@@ -67,15 +67,26 @@ html, body {
   gap: 10px;
 }
 
-.logo-elysium-circle {
-  width: 42px;
-  height: 42px;
+.elysium-logo-wrapper {
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  object-fit: cover;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
-  border: 2px solid rgba(199, 176, 141, 0.35);
-  box-shadow: none;
+  border: 2px solid rgba(199, 176, 141, 0.45);
   flex-shrink: 0;
+}
+
+.elysium-logo {
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .header-logo {
@@ -763,9 +774,9 @@ html, body {
   .header-logo {
     height: 36px;
   }
-  .logo-elysium-circle {
-    width: 32px;
-    height: 32px;
+  .elysium-logo-wrapper {
+    width: 36px;
+    height: 36px;
   }
   .header-title {
     font-size: 1.05rem;
