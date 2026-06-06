@@ -19,21 +19,26 @@
 
   <!-- ══ HEADER ══ -->
   <header class="header">
-    <div class="header-brand">
-      <div class="logo-group">
-        <img src="assets/Undip.png" alt="Logo Undip" class="header-logo logo-undip" />
-        <img src="assets/logo HIMATRO_retouch.png" alt="Logo Himatro" class="header-logo logo-himatro" />
-        <img src="assets/ELYSIUM 23 FIX.png" alt="Logo Elysium" class="header-logo logo-elysium" />
-      </div>
+    <!-- LEFT SECTION -->
+    <div class="header-left">
+      <img src="assets/Undip.png" alt="Logo Undip" class="header-logo logo-undip" />
       <div class="header-text">
         <div class="header-title">SISTEM STAMPING OTOMATIS ESP32</div>
         <div class="header-sub">Kelompok 4 • Praktikum Proyek Otomasi</div>
       </div>
     </div>
+
+    <!-- RIGHT SECTION -->
     <div class="header-right">
-      <div class="mqtt-status disconnected" id="systemStatus">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Disconnected</span>
+      <div class="header-right-top">
+        <div class="header-logos-right">
+          <img src="assets/logo HIMATRO_retouch.png" alt="Logo Himatro" class="header-logo logo-himatro" />
+          <img src="assets/ELYSIUM 23 FIX.png" alt="Logo Elysium" class="header-logo logo-elysium" />
+        </div>
+        <div class="mqtt-status disconnected" id="systemStatus">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Disconnected</span>
+        </div>
       </div>
       <div class="header-clock" id="clock">00:00:00</div>
     </div>

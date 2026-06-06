@@ -4,20 +4,27 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --primary-navy:    #232562;
-  --primary-green:   #014B3A;
-  --accent-orange:   #F79A1E;
-  --background-main: #F5F7FA;
-  --background-soft: #FFFFFF;
-  --card-bg:         #FFFFFF;
+  --elysium-bg:      #E8DED3;
+  --elysium-dark:    #050009;
+  --elysium-teal:    #203941;
+  --elysium-gold:    #C7B08D;
+  --elysium-white:   #F8F4EF;
   --text-main:       #1E2433;
   --text-muted:      #6B7280;
-  --border-soft:     #E5E7EB;
-  --success:         #014B3A;
-  --warning:         #F79A1E;
-  --danger:          #D9534F;
+  --card-bg:         #FFFFFF;
+  --border-soft:     #E3D7C9;
+  --success:         #203941;
+  --warning:         #C7B08D;
+  --danger:          #B4533C;
   --radius:          8px;
   --radius-lg:       12px;
+
+  /* Compatibility Mapping */
+  --primary-navy:    var(--elysium-teal);
+  --primary-green:   #014B3A; /* HIMATRO Green */
+  --accent-orange:   var(--elysium-gold);
+  --background-main: var(--elysium-bg);
+  --background-soft: var(--elysium-white);
 }
 
 html, body {
@@ -25,7 +32,7 @@ html, body {
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.5;
-  background: var(--background-main);
+  background: var(--background-soft);
   color: var(--text-main);
   overflow-x: hidden;
 }
@@ -37,60 +44,65 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
-  background: var(--primary-navy);
+  padding: 16px 24px;
+  background: var(--elysium-dark);
   position: sticky;
   top: 0;
   z-index: 100;
   gap: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(199, 176, 141, 0.3);
 }
 
-.header-brand {
+.header-left {
   display: flex;
   align-items: center;
   gap: 16px;
 }
 
-.logo-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 4px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
 .header-logo {
-  height: 42px;
-  width: 42px;
+  height: 46px;
+  width: auto;
   object-fit: contain;
   flex-shrink: 0;
-  background: #FFFFFF;
-  padding: 3px;
-  border-radius: 6px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
 }
 
 .header-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--elysium-white);
   letter-spacing: .02em;
 }
 
 .header-sub {
   font-size: .8rem;
-  color: #D1D5DB;
+  color: var(--elysium-gold);
   font-weight: 400;
   margin-top: 1px;
 }
 
 .header-right {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   flex-shrink: 0;
+}
+
+.header-right-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-logos-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .mqtt-status {
@@ -106,15 +118,15 @@ html, body {
 }
 
 .mqtt-status.connected {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #86EFAC;
+  background: var(--success);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
 }
 
 .mqtt-status.disconnected {
-  background: rgba(217, 83, 79, 0.15);
-  border: 1px solid rgba(217, 83, 79, 0.25);
-  color: #FCA5A5;
+  background: var(--danger);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
 }
 
 .status-dot {
@@ -130,7 +142,7 @@ html, body {
 }
 
 .mqtt-status.disconnected .status-dot {
-  background: var(--danger);
+  background: #FFFFFF;
 }
 
 @keyframes pulse {
@@ -139,9 +151,9 @@ html, body {
 }
 
 .header-clock {
-  font-size: .95rem;
+  font-size: .9rem;
   font-weight: 600;
-  color: #E5E7EB;
+  color: var(--elysium-gold);
   min-width: 70px;
   text-align: right;
 }
@@ -720,32 +732,29 @@ html, body {
     gap: 12px;
     padding: 14px 16px;
   }
-  .header-brand {
+  .header-left {
     width: 100%;
   }
   .header-right {
     width: 100%;
+    flex-direction: row;
     justify-content: space-between;
+    align-items: center;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding-top: 8px;
+    gap: 8px;
   }
 }
 
 @media (max-width: 560px) {
-  .logo-group {
-    padding: 3px 6px;
-    gap: 6px;
-  }
   .header-logo {
-    height: 34px;
-    width: 34px;
-    padding: 2px;
+    height: 36px;
   }
   .header-title {
-    font-size: 1rem;
+    font-size: 1.05rem;
   }
   .header-sub {
-    font-size: .7rem;
+    font-size: .72rem;
   }
   .cards-big    { grid-template-columns: 1fr 1fr; }
   .cards-small  { grid-template-columns: 1fr 1fr; }
