@@ -89,32 +89,30 @@ html, body {
   max-width: 52px !important;
   max-height: 52px !important;
 
-  border-radius: 999px !important;
+  border-radius: 50% !important;
   overflow: hidden !important;
 
   display: flex !important;
   align-items: center !important;
-
   justify-content: center !important;
 
-  background: rgba(232, 222, 211, 0.35) !important;
+  background: rgba(232, 222, 211, 0.18) !important;
   border: 2px solid rgba(199, 176, 141, 0.85) !important;
   box-sizing: border-box !important;
-
-  padding: 4px !important;
   flex-shrink: 0 !important;
 }
 
 .elysium-logo-wrapper .elysium-logo {
-  width: 100% !important;
-  height: 100% !important;
+  width: 82% !important;
+  height: 82% !important;
   object-fit: contain !important;
-
   display: block !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  border-radius: 0 !important;
+  /* Membulatkan asset gambar untuk memotong background kotak bawaan asset jika tidak transparan */
+  border-radius: 50% !important;
+  overflow: hidden !important;
 }
 
 .header-logo {
