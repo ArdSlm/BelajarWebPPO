@@ -240,6 +240,51 @@
         <div class="log-body" id="logBody"></div>
       </div>
 
+      <!-- ══ DATA LOG PROSES ══ -->
+      <div class="history-card process-log-card">
+        <div class="history-hdr">
+          <span class="history-title">📝 Data Log Proses Produksi</span>
+          <div class="history-actions">
+            <button class="btn-save-prod btn-snapshot" id="btnSaveSnapshot" onclick="saveSnapshot()">
+              💾 Simpan Data Sekarang
+            </button>
+            <button class="btn-csv" id="btnDownloadProcessCsv" onclick="downloadProcessCSV()">
+              ⬇️ Download CSV
+            </button>
+            <button class="btn-reset-hist" id="btnResetProcessLog" onclick="resetProcessLog()">
+              🗑️ Reset Log
+            </button>
+          </div>
+        </div>
+        <div class="history-count">Total log: <strong id="processLogCount">0</strong> record</div>
+        <div class="history-table-wrap">
+          <table class="history-table" id="processLogTable">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Tanggal</th>
+                <th>Jam</th>
+                <th>Event</th>
+                <th>Run</th>
+                <th>Motor</th>
+                <th>State</th>
+                <th>IR1</th>
+                <th>IR2</th>
+                <th>Barang</th>
+                <th>Stamping</th>
+                <th>PWM</th>
+                <th>WiFi</th>
+              </tr>
+            </thead>
+            <tbody id="processLogBody">
+              <tr class="history-empty">
+                <td colspan="13">Belum ada log proses. Data akan otomatis tercatat saat ESP32 mengirim perubahan status.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ══ RIWAYAT PRODUKSI ══ -->
       <div class="history-card">
         <div class="history-hdr">

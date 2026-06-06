@@ -1,13 +1,13 @@
 // ════════════════════════════════
 //  MQTT CONFIG
 // ════════════════════════════════
-const MQTT_BROKER    = 'wss://68c31b50ae9e4ae79325b503da99b709.s1.eu.hivemq.cloud:8884/mqtt';
-const TOPIC_STATUS   = 'kelompok4/stamping/status';
-const TOPIC_CMD      = 'kelompok4/stamping/cmd';
+const MQTT_BROKER = 'wss://68c31b50ae9e4ae79325b503da99b709.s1.eu.hivemq.cloud:8884/mqtt';
+const TOPIC_STATUS = 'kelompok4/stamping/status';
+const TOPIC_CMD = 'kelompok4/stamping/cmd';
 
 // Credentials hardcoded agar pasti tersedia saat koneksi
-const MQTT_USERNAME  = 'ardisalim';
-const MQTT_PASSWORD  = 'Tarlina06)';
+const MQTT_USERNAME = 'ardisalim';
+const MQTT_PASSWORD = 'Tarlina06)';
 
 // ════════════════════════════════
 //  STATE
@@ -25,6 +25,19 @@ let latestStatus = {
   pwm: 0,
   wifi: 0,
 };
+
+// ── PROCESS LOG STATE ──
+const LS_PROCESS_KEY = 'stamping_process_logs';
+let processLogs = [];
+try {
+  processLogs = JSON.parse(localStorage.getItem(LS_PROCESS_KEY) || '[]');
+} catch (e) {
+  console.error('processLogs load error:', e);
+  processLogs = [];
+}
+
+// Simpan data sebelumnya untuk deteksi perubahan
+let previousData = null;
 
 const chartHistory = Array(24).fill(0);
 const chartLabels = Array(24).fill('');
@@ -127,6 +140,8 @@ function updateChart(totalBarang) {
 }
 
 function updateDashboardFromStatus(data) {
+  const prev = previousData;
+
   latestStatus = {
     run: Boolean(data.run),
     motor: data.motor ?? '-',
@@ -177,6 +192,44 @@ function updateDashboardFromStatus(data) {
 
   const conveyorInfo = document.getElementById('conveyorInfo');
   if (conveyorInfo) conveyorInfo.textContent = runText;
+
+  // ── AUTO PROCESS LOG ──
+  if (prev !== null) {
+    // run: false → true
+    if (!prev.run && latestStatus.run) {
+      saveProcessLog('START SISTEM', latestStatus);
+    }
+    // run: true → false
+    if (prev.run && !latestStatus.run) {
+      saveProcessLog('STOP SISTEM', latestStatus);
+    }
+    // state berubah
+    if (prev.state !== latestStatus.state) {
+      saveProcessLog('STATE: ' + latestStatus.state, latestStatus);
+    }
+    // counter_barang bertambah
+    if (latestStatus.counter_barang > prev.counter_barang) {
+      saveProcessLog('BARANG TERHITUNG', latestStatus);
+    }
+    // counter_stamping bertambah
+    if (latestStatus.counter_stamping > prev.counter_stamping) {
+      saveProcessLog('STAMPING BERHASIL', latestStatus);
+    }
+    // pwm berubah
+    if (prev.pwm !== latestStatus.pwm) {
+      saveProcessLog('PWM BERUBAH', latestStatus);
+    }
+    // ir1 terdeteksi (0 → 1)
+    if (prev.ir1 === 0 && latestStatus.ir1 === 1) {
+      saveProcessLog('IR1 TERDETEKSI', latestStatus);
+    }
+    // ir2 terdeteksi (0 → 1)
+    if (prev.ir2 === 0 && latestStatus.ir2 === 1) {
+      saveProcessLog('IR2 TERDETEKSI', latestStatus);
+    }
+  }
+
+  previousData = { ...latestStatus };
 }
 
 function publishCommand(payload) {
@@ -295,13 +348,13 @@ window.resetSystem = function () {
 
 // PWM slider: nilai slider 0-100 (persen) → konversi ke 0-255 (raw ESP32)
 window.updateSpeed = function (value) {
-  const pct    = toNumber(value);              // 0–100 dari slider
+  const pct = toNumber(value);              // 0–100 dari slider
   const pwmRaw = Math.round((pct / 100) * 255); // 0–255 untuk ESP32
 
   const speedVal = document.getElementById('speedVal');
-  const scPwm    = document.getElementById('sc-pwm');
+  const scPwm = document.getElementById('sc-pwm');
   if (speedVal) speedVal.textContent = String(pct);
-  if (scPwm)    scPwm.textContent    = String(pwmRaw);
+  if (scPwm) scPwm.textContent = String(pwmRaw);
 
   const payload = JSON.stringify({ command: 'SET_PWM', value: pwmRaw });
   console.log('PWM sent:', payload, `(slider=${pct}%, raw=${pwmRaw})`);
@@ -315,13 +368,13 @@ window.setSpeed = function (value) {
 };
 
 // ── Legacy/no-op stubs (YOLO/vision fitur tidak digunakan) ──
-window.setMode      = function () { /* disabled */ };
-window.pressStamp   = function () { /* disabled */ };
-window.manualStamp  = function () { /* disabled */ };
-window.runServo2    = function () { /* disabled */ };
-window.sendServo2   = function () { /* disabled */ };
-window.runStepper   = function () { /* disabled */ };
-window.sendStepper  = function () { /* disabled */ };
+window.setMode = function () { /* disabled */ };
+window.pressStamp = function () { /* disabled */ };
+window.manualStamp = function () { /* disabled */ };
+window.runServo2 = function () { /* disabled */ };
+window.sendServo2 = function () { /* disabled */ };
+window.runStepper = function () { /* disabled */ };
+window.sendStepper = function () { /* disabled */ };
 window.resetCounter = window.resetSystem;
 
 function init() {
@@ -334,6 +387,152 @@ function init() {
 }
 
 init();
+
+// ════════════════════════════════
+//  PROCESS LOG (localStorage)
+// ════════════════════════════════
+
+/** Simpan satu log proses ke processLogs dan localStorage */
+function saveProcessLog(eventName, data) {
+  if (!data) return;
+
+  const newLog = {
+    id: Date.now(),
+    tanggal: new Date().toLocaleDateString('id-ID'),
+    jam: new Date().toLocaleTimeString('id-ID'),
+    timestamp: new Date().toISOString(),
+    event: eventName,
+    run: data.run ?? false,
+    motor: data.motor ?? '-',
+    state: data.state ?? '-',
+    ir1: data.ir1 ?? '-',
+    ir2: data.ir2 ?? '-',
+    counter_barang: data.counter_barang ?? 0,
+    counter_stamping: data.counter_stamping ?? 0,
+    pwm: data.pwm ?? 0,
+    wifi: data.wifi ?? '-',
+  };
+
+  processLogs = [newLog, ...processLogs];
+  localStorage.setItem(LS_PROCESS_KEY, JSON.stringify(processLogs));
+  console.log('Process log saved:', newLog);
+  renderProcessLogTable();
+}
+
+/** Render tabel log proses dari processLogs */
+function renderProcessLogTable() {
+  const tbody = document.getElementById('processLogBody');
+  const counter = document.getElementById('processLogCount');
+  if (!tbody) return;
+
+  if (counter) counter.textContent = processLogs.length;
+
+  if (processLogs.length === 0) {
+    tbody.innerHTML = '<tr class="history-empty"><td colspan="13">Belum ada log proses. Data akan otomatis tercatat saat ESP32 mengirim perubahan status.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = processLogs.map((log, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${log.tanggal}</td>
+      <td>${log.jam}</td>
+      <td><span class="log-event-badge ${getEventClass(log.event)}">${log.event}</span></td>
+      <td><span class="badge-run ${log.run ? 'on' : 'off'}">${log.run ? 'ON' : 'OFF'}</span></td>
+      <td>${log.motor}</td>
+      <td>${log.state}</td>
+      <td>${log.ir1}</td>
+      <td>${log.ir2}</td>
+      <td>${log.counter_barang}</td>
+      <td>${log.counter_stamping}</td>
+      <td>${log.pwm}</td>
+      <td>${log.wifi}</td>
+    </tr>
+  `).join('');
+}
+
+function getEventClass(event) {
+  if (event === 'START SISTEM') return 'ev-start';
+  if (event === 'STOP SISTEM') return 'ev-stop';
+  if (event === 'STAMPING BERHASIL') return 'ev-stamp';
+  if (event === 'BARANG TERHITUNG') return 'ev-barang';
+  if (event === 'SNAPSHOT MANUAL') return 'ev-snapshot';
+  if (event.startsWith('STATE:')) return 'ev-state';
+  if (event === 'PWM BERUBAH') return 'ev-pwm';
+  if (event.includes('IR')) return 'ev-ir';
+  return '';
+}
+
+/** Tombol Simpan Snapshot Manual */
+window.saveSnapshot = function () {
+  saveProcessLog('SNAPSHOT MANUAL', latestStatus);
+  logMessage('Snapshot manual disimpan', 'ok');
+  const btn = document.getElementById('btnSaveSnapshot');
+  if (btn) {
+    btn.classList.add('flash');
+    setTimeout(() => btn.classList.remove('flash'), 600);
+  }
+};
+
+/** Download CSV log proses */
+window.downloadProcessCSV = function () {
+  if (!processLogs || processLogs.length === 0) {
+    alert('Belum ada data log untuk didownload');
+    return;
+  }
+
+  const headers = [
+    'No', 'Tanggal', 'Jam', 'Event', 'Run', 'Motor', 'State',
+    'IR1', 'IR2', 'Counter Barang', 'Counter Stamping', 'PWM', 'WiFi RSSI', 'Timestamp'
+  ];
+
+  const rows = processLogs.map((log, index) => [
+    index + 1,
+    log.tanggal,
+    log.jam,
+    log.event,
+    log.run ? 'ON' : 'OFF',
+    log.motor,
+    log.state,
+    log.ir1,
+    log.ir2,
+    log.counter_barang,
+    log.counter_stamping,
+    log.pwm,
+    log.wifi,
+    log.timestamp,
+  ]);
+
+  const BOM = '\uFEFF';
+  const csvContent = BOM + [
+    headers.join(','),
+    ...rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(','))
+  ].join('\r\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'log_proses_stamping.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+
+  console.log('CSV downloaded:', processLogs.length, 'record');
+  logMessage(`CSV log proses di-download: ${processLogs.length} record`, 'ok');
+};
+
+/** Reset semua log proses */
+window.resetProcessLog = function () {
+  if (!confirm('Yakin ingin menghapus semua log proses?\nData tidak bisa dikembalikan.')) return;
+  processLogs = [];
+  localStorage.removeItem(LS_PROCESS_KEY);
+  renderProcessLogTable();
+  console.log('Process log dihapus');
+  logMessage('Log proses direset', 'warn');
+};
+
+// Render log proses saat halaman pertama kali dibuka
+renderProcessLogTable();
 
 // ════════════════════════════════
 //  PRODUCTION HISTORY (localStorage)
@@ -358,7 +557,7 @@ function saveHistory(history) {
 /** Render tabel riwayat produksi dari history array */
 function renderHistoryTable() {
   const history = loadHistory();
-  const tbody   = document.getElementById('historyBody');
+  const tbody = document.getElementById('historyBody');
   const counter = document.getElementById('historyCount');
   if (!tbody) return;
 
@@ -387,15 +586,15 @@ function renderHistoryTable() {
 /** Simpan snapshot produksi saat ini ke localStorage */
 window.saveProduction = function () {
   const record = {
-    id              : Date.now(),
-    tanggal         : new Date().toLocaleDateString('id-ID'),
-    jam             : new Date().toLocaleTimeString('id-ID'),
-    counter_barang  : latestStatus.counter_barang,
+    id: Date.now(),
+    tanggal: new Date().toLocaleDateString('id-ID'),
+    jam: new Date().toLocaleTimeString('id-ID'),
+    counter_barang: latestStatus.counter_barang,
     counter_stamping: latestStatus.counter_stamping,
-    pwm             : latestStatus.pwm,
-    motor           : latestStatus.motor,
-    state           : latestStatus.state,
-    wifi            : latestStatus.wifi,
+    pwm: latestStatus.pwm,
+    motor: latestStatus.motor,
+    state: latestStatus.state,
+    wifi: latestStatus.wifi,
   };
 
   const history = loadHistory();
@@ -423,7 +622,7 @@ window.downloadCSV = function () {
   }
 
   const headers = ['No', 'Tanggal', 'Jam', 'Total Barang', 'Total Stamping', 'PWM', 'Motor', 'State', 'WiFi RSSI (dBm)'];
-  const rows    = history.map((row, idx) => [
+  const rows = history.map((row, idx) => [
     idx + 1,
     row.tanggal,
     row.jam,
@@ -436,13 +635,13 @@ window.downloadCSV = function () {
   ]);
 
   // BOM agar Excel baca UTF-8 dengan benar
-  const BOM    = '\uFEFF';
+  const BOM = '\uFEFF';
   const csvStr = BOM + [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\r\n');
 
   const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
   a.download = 'hasil_produksi_stamping.csv';
   a.click();
   URL.revokeObjectURL(url);
