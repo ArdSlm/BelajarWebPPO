@@ -19,32 +19,36 @@
 
   <!-- ══ HEADER ══ -->
   <header class="header">
-    <!-- LEFT SECTION -->
+    <!-- LEFT: Logo UNDIP + Title + Logos -->
     <div class="header-left">
       <img src="assets/Undip.png" alt="Logo Undip" class="header-logo logo-undip" />
       <div class="header-text">
         <div class="header-title-row">
           <span class="header-title">SISTEM STAMPING OTOMATIS ESP32</span>
-          <div class="elysium-logo-wrapper">
-            <img src="assets/ELYSIUM 23 FIX.png" alt="Logo Elysium" class="elysium-logo" />
+          <div class="header-logos-inline">
+            <div class="elysium-logo-wrapper">
+              <img src="assets/ELYSIUM 23 FIX.png" alt="Logo Elysium" class="elysium-logo" />
+            </div>
+            <img src="assets/logo HIMATRO_retouch.png" alt="Logo Himatro" class="header-logo logo-himatro" />
           </div>
         </div>
         <div class="header-sub">Kelompok 4 • Praktikum Proyek Otomasi</div>
       </div>
     </div>
 
-    <!-- RIGHT SECTION -->
+    <!-- RIGHT: MQTT + Clock -->
     <div class="header-right">
-      <div class="header-right-top">
-        <img src="assets/logo HIMATRO_retouch.png" alt="Logo Himatro" class="header-logo logo-himatro" />
-        <div class="mqtt-status disconnected" id="systemStatus">
-          <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">Disconnected</span>
-        </div>
+      <div class="mqtt-status disconnected" id="systemStatus">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Disconnected</span>
       </div>
       <div class="header-clock" id="clock">00:00:00</div>
     </div>
   </header>
+
+  <!-- ══ WATERMARK ══ -->
+  <div class="dashboard-wrapper">
+    <img src="assets/ELYSIUM 23 FIX.png" alt="" class="dashboard-watermark" />
 
   <!-- ══ LAYOUT ══ -->
   <div class="layout">
@@ -226,6 +230,7 @@
 
     </main><!-- /main-content -->
   </div><!-- /layout -->
+  </div><!-- /dashboard-wrapper -->
 
   <!-- Hidden legacy compat elements -->
   <div style="display:none" aria-hidden="true">
