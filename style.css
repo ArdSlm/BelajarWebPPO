@@ -82,31 +82,39 @@ html, body {
 }
 
 .elysium-logo-wrapper {
-  width: 52px;
-  height: 52px;
-  min-width: 52px;
-  min-height: 52px;
-  max-width: 52px;
-  max-height: 52px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(232, 222, 211, 0.35);
-  border: 2px solid rgba(199, 176, 141, 0.85);
-  box-sizing: border-box;
-  flex-shrink: 0;
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  min-height: 52px !important;
+  max-width: 52px !important;
+  max-height: 52px !important;
+
+  border-radius: 999px !important;
+  overflow: hidden !important;
+
+  display: flex !important;
+  align-items: center !important;
+
+  justify-content: center !important;
+
+  background: rgba(232, 222, 211, 0.35) !important;
+  border: 2px solid rgba(199, 176, 141, 0.85) !important;
+  box-sizing: border-box !important;
+
+  padding: 4px !important;
+  flex-shrink: 0 !important;
 }
 
-.elysium-logo {
-  width: 84%;
-  height: 84%;
-  object-fit: contain;
-  display: block;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+.elysium-logo-wrapper .elysium-logo {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+
+  display: block !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
 }
 
 .header-logo {
